@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+
+# Logs
+*.log
+crm.log
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Env
+.env
+
+# Gemini Agent Cache
+.gemini/
