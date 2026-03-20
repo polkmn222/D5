@@ -152,6 +152,18 @@ async def update_opportunity(
         logger.error(f"Update Opportunity error: {e}")
         return RedirectResponse(url=f"/opportunities/{opp_id}?error=Error+updating+opportunity:+{str(e).replace(' ', '+')}", status_code=303)
 
+@router.post("/{opp_id}/batch-save")
+@handle_agent_errors
+async def batch_save_opportunity(opp_id: str, updates: dict, db: Session = Depends(get_db)):
+    """Handles JSON batch updates from inline editing."""
+    clean_updates = {}
+    for k, v in updates.items():
+        key = k.lower().replace(" ", "_")
+        clean_updates[key] = v
+    
+    OpportunityService.update_opportunity(db, opp_id, **clean_updates)
+    return {"status": "success"}
+
 @router.post("/{opp_id}/delete")
 @handle_agent_errors
 async def delete_opportunity(request: Request, opp_id: str, db: Session = Depends(get_db)):

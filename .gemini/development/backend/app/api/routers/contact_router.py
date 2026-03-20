@@ -92,7 +92,7 @@ async def create_contact(
     )
     return RedirectResponse(url=f"/contacts/{contact.id}?success=Record+created+successfully", status_code=303)
 
-@router.post("/{contact_id}/update")
+@router.post("/{contact_id}")
 @handle_agent_errors
 async def update_contact(
     request: Request,
@@ -113,6 +113,36 @@ async def update_contact(
         website=website, tier=tier, description=description
     )
     return RedirectResponse(url=f"/contacts/{contact_id}" + "?success=Record+updated+successfully", status_code=303)
+
+@router.post("/{contact_id}/update")
+@handle_agent_errors
+async def update_contact_legacy(
+    request: Request,
+    contact_id: str,
+    first_name: Optional[str] = Form(None),
+    last_name: Optional[str] = Form(None),
+    gender: Optional[str] = Form(None),
+    email: Optional[str] = Form(None),
+    phone: Optional[str] = Form(None),
+    website: Optional[str] = Form(None),
+    tier: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    return await update_contact(request, contact_id, first_name, last_name, gender, email, phone, website, tier, description, db)
+
+@router.post("/{contact_id}/batch-save")
+@handle_agent_errors
+async def batch_save_contact(contact_id: str, updates: dict, db: Session = Depends(get_db)):
+    """Handles JSON batch updates from inline editing."""
+    # Clean keys (remove underscores/spaces and match model)
+    clean_updates = {}
+    for k, v in updates.items():
+        key = k.lower().replace(" ", "_")
+        clean_updates[key] = v
+    
+    ContactService.update_contact(db, contact_id, **clean_updates)
+    return {"status": "success"}
 
 @router.post("/{contact_id}/delete")
 @handle_agent_errors

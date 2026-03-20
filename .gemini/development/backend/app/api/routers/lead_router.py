@@ -127,6 +127,24 @@ async def create_lead(
     )
     return RedirectResponse(url=f"/leads/{lead.id}?success=Record+created+successfully", status_code=303)
 
+@router.post("/{lead_id}")
+@handle_agent_errors
+async def update_lead_direct(
+    lead_id: str,
+    first_name: Optional[str] = Form(None),
+    last_name: Optional[str] = Form(None),
+    gender: Optional[str] = Form(None),
+    email: Optional[str] = Form(None),
+    phone: Optional[str] = Form(None),
+    status: Optional[str] = Form(None),
+    brand: Optional[str] = Form(None),
+    model: Optional[str] = Form(None),
+    product: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    return await update_lead(lead_id, first_name, last_name, gender, email, phone, status, brand, model, product, description, db)
+
 @router.post("/{lead_id}/update")
 @handle_agent_errors
 async def update_lead(
@@ -150,6 +168,18 @@ async def update_lead(
         product=product, description=description
     )
     return RedirectResponse(url=f"/leads/{lead_id}?success=Record+updated+successfully", status_code=303)
+
+@router.post("/{lead_id}/batch-save")
+@handle_agent_errors
+async def batch_save_lead(lead_id: str, updates: dict, db: Session = Depends(get_db)):
+    """Handles JSON batch updates from inline editing."""
+    clean_updates = {}
+    for k, v in updates.items():
+        key = k.lower().replace(" ", "_")
+        clean_updates[key] = v
+    
+    LeadService.update_lead(db, lead_id, **clean_updates)
+    return {"status": "success"}
 
 @router.post("/{lead_id}/delete")
 @handle_agent_errors
