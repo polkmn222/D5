@@ -5,7 +5,7 @@ from db.database import Base
 from backend.app.services.lead_service import LeadService
 
 # Use in-memory SQLite for tests
-SQLALCHEMY_DATABASE_URL = "sqlite:///./.gemini/development/test/databases/test_lead_crud.db"
+SQLALCHEMY_DATABASE_URL = "sqlite:///./db/test_runs/test_lead_crud.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

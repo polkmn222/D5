@@ -112,8 +112,6 @@ class Asset(BaseModel):
     purchase_date = Column(DateTime, nullable=True)
     price = Column(Integer, default=0)
 
-
-
 class MessageSend(BaseModel):
     __tablename__ = "message_sends"
 
@@ -153,5 +151,3 @@ class Attachment(BaseModel):
     parent_id = Column(String(18), nullable=True) # Optional generic link
     parent_type = Column(String, nullable=True)   # e.g., 'MessageTemplate'
     provider_key = Column(String, nullable=True)   # SUREM imageKey
-
-

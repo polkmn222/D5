@@ -13,8 +13,10 @@ class AssetService(BaseService[Asset]):
 
     @classmethod
     @handle_agent_errors
-    def create_asset(cls, db: Session, name: str, contact: Optional[str] = None, product: Optional[str] = None, **kwargs) -> Asset:
+    def create_asset(cls, db: Session, name: Optional[str] = None, contact: Optional[str] = None, product: Optional[str] = None, **kwargs) -> Asset:
         try:
+            if not name:
+                name = kwargs.get("vin", "New Asset")
             return cls.create(db, name=name, contact=contact, product=product, **kwargs)
         except Exception as e:
             logger.error(f"Critical error in create_asset: {e}")

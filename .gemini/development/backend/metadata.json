@@ -1,6 +1,6 @@
 {
   "project": "AI Ready CRM (D4)",
-  "database": "sqlite",
+  "database": "postgresql-neon",
   "tables": {
     "leads": {
       "description": "Potential customers or sales leads in the automotive CRM.",

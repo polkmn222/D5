@@ -7,7 +7,7 @@ from backend.app.services.opportunity_service import OpportunityService
 from db.models import Lead, Opportunity
 
 # Use a separate test database file
-SQLALCHEMY_DATABASE_URL = "sqlite:///./.gemini/development/test/databases/test_phase16.db"
+SQLALCHEMY_DATABASE_URL = "sqlite:///./db/test_runs/test_phase16.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

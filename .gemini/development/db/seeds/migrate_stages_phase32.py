@@ -1,17 +1,10 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 import sys
 import os
 
-# Add parent directory to path to import app modules
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from backend.app.models import Opportunity
-from backend.app.core.enums import OpportunityStage
-
-DATABASE_URL = "sqlite:///./crm.db"
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+from db.database import SessionLocal
+from db.models import Opportunity
 
 def migrate():
     db = SessionLocal()

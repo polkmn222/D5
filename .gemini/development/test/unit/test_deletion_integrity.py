@@ -21,7 +21,7 @@ from backend.app.services.message_service import MessageService
 from backend.app.services.message_template_service import MessageTemplateService
 
 # Setup test database
-SQLALCHEMY_DATABASE_URL = "sqlite:///./.gemini/development/test/databases/test_deletion.db"
+SQLALCHEMY_DATABASE_URL = "sqlite:///./db/test_runs/test_deletion.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

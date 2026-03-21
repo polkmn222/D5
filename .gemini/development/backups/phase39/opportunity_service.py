@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 import logging
 from db.models import Opportunity
-from backend.app.utils.timezone import get_kst_now_naive, make_naive_kst
+from backend.app.utils.timezone import get_kst_now_naive
 from .base_service import BaseService
 from backend.app.utils.error_handler import handle_agent_errors
 
@@ -44,7 +44,14 @@ class OpportunityService(BaseService[Opportunity]):
     def get_opportunities(cls, db: Session) -> List[Opportunity]:
         try:
             opps = cls.list(db)
-            opps.sort(key=lambda x: make_naive_kst(x.created_at), reverse=True)
+            # Use a robust sort like in get_recent_clicked
+            def parse_date(d):
+                if not d: return datetime.min
+                if isinstance(d, datetime): return d
+                try: return datetime.fromisoformat(str(d))
+                except: return datetime.min
+                
+            opps.sort(key=lambda x: parse_date(x.created_at), reverse=True)
             return opps
         except Exception as e:
             logger.error(f"Error in get_opportunities: {e}")
@@ -132,8 +139,14 @@ class OpportunityService(BaseService[Opportunity]):
             # Filter for opportunities that have been viewed
             viewed_opps = [o for o in opps if o.last_viewed_at]
             
+            def parse_date(d):
+                if not d: return datetime.min
+                if isinstance(d, datetime): return d
+                try: return datetime.fromisoformat(str(d))
+                except: return datetime.min
+
             # Sort the viewed opportunities by creation date in reverse chronological order
-            viewed_opps.sort(key=lambda x: make_naive_kst(x.created_at), reverse=True)
+            viewed_opps.sort(key=lambda x: parse_date(x.created_at), reverse=True)
             
             return viewed_opps[:limit]
         except Exception as e:
@@ -147,26 +160,57 @@ class OpportunityService(BaseService[Opportunity]):
             horizon = get_kst_now_naive() - timedelta(days=horizon_days)
             opps = cls.list(db)
             
-            opps_filtered = [o for o in opps if make_naive_kst(o.created_at) >= horizon]
+            def safe_created_at(o):
+                if not o.created_at: return datetime.min
+                if isinstance(o.created_at, datetime): return o.created_at
+                try: return datetime.fromisoformat(str(o.created_at))
+                except: return datetime.min
+
+            opps_filtered = [o for o in opps if safe_created_at(o) >= horizon]
             
             stages = ["Qualification", "Test Drive", "Proposal/Price Quote", "Negotiation/Review", "Closed Won", "Closed Lost"]
             performance_by_stage = []
             for stage in stages:
                 amount = sum(o.amount for o in opps_filtered if o.stage == stage and o.amount)
-                performance_by_stage.append({"label": stage, "amount": int(amount)})
-            
-            closed_won_amount = sum(o.amount for o in opps_filtered if o.stage == 'Closed Won' and o.amount)
+                performance_by_stage.append({"label": stage, "amount": f"{amount:,}"})
             
             return {
                 "by_stage": performance_by_stage,
-                "closed_won": f"{int(closed_won_amount):,}",
+                "closed_won": f"{sum(o.amount for o in opps_filtered if o.stage == 'Closed Won' and o.amount):,}",
                 "total_target": 1000000000
             }
         except Exception as e:
             logger.error(f"Error in get_performance_stats: {e}")
             return {"by_stage": [], "closed_won": "0", "total_target": 1000000000}
 
-# AI recommendations moved to ai_agent.backend.recommendations
+    @classmethod
+    @handle_agent_errors
+    def get_performance_stats(cls, db: Session, horizon_days: int = 7) -> dict:
+        try:
+            horizon = get_kst_now_naive() - timedelta(days=horizon_days)
+            opps = cls.list(db)
+            
+            def safe_created_at(o):
+                if not o.created_at: return datetime.min
+                if isinstance(o.created_at, datetime): return o.created_at
+                try: return datetime.fromisoformat(str(o.created_at))
+                except: return datetime.min
 
+            opps_filtered = [o for o in opps if safe_created_at(o) >= horizon]
+            
+            stages = ["Qualification", "Test Drive", "Proposal/Price Quote", "Negotiation/Review", "Closed Won", "Closed Lost"]
+            performance_by_stage = []
+            for stage in stages:
+                amount = sum(o.amount for o in opps_filtered if o.stage == stage and o.amount)
+                performance_by_stage.append({"label": stage, "amount": f"{amount:,}"})
+            
+            return {
+                "by_stage": performance_by_stage,
+                "closed_won": f"{sum(o.amount for o in opps_filtered if o.stage == 'Closed Won' and o.amount):,}",
+                "total_target": 1000000000
+            }
+        except Exception as e:
+            logger.error(f"Error in get_performance_stats: {e}")
+            return {"by_stage": [], "closed_won": "0", "total_target": 1000000000}
 
 # AI recommendations moved to ai_agent.backend.recommendations

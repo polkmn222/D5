@@ -8,7 +8,7 @@ from backend.app.services.contact_service import ContactService
 from backend.app.utils.sf_id import get_id
 
 # Setup test database
-SQLALCHEMY_DATABASE_URL = "sqlite:///./.gemini/development/test/databases/test.db"
+SQLALCHEMY_DATABASE_URL = "sqlite:///./db/test_runs/test.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

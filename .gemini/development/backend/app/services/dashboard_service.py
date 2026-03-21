@@ -7,7 +7,7 @@ from .opportunity_service import OpportunityService
 from .contact_service import ContactService
 
 from .base_service import BaseService
-from backend.app.utils.timezone import get_kst_now_naive
+from backend.app.utils.timezone import get_kst_now_naive, make_naive_kst
 
 logger = logging.getLogger(__name__)
 
@@ -34,19 +34,8 @@ class DashboardService:
         all_records = []
         
         def safe_date(obj):
-            # Ensure created_at is a datetime object or None
-            # Some objects might be dicts or have string attributes
             dt = getattr(obj, 'created_at', None)
-            if dt is None:
-                return datetime.min
-            if isinstance(dt, datetime):
-                return dt
-            try:
-                # Attempt to parse ISO format if it's a string
-                return datetime.fromisoformat(str(dt))
-            except (ValueError, TypeError):
-                logger.warning(f"Could not parse date: {dt}")
-                return datetime.min
+            return make_naive_kst(dt)
 
         # Populate all_records from leads, contacts
         for l in leads:
