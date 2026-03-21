@@ -43,6 +43,59 @@ SKILLS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__f
 METADATA_PATH = os.path.join(SKILLS_DIR, "backend", "metadata.json")
 
 class AiAgentService:
+    @classmethod
+    async def _call_llm(cls, user_query: str, system_prompt: str) -> Dict[str, Any]:
+        return await cls._call_multi_llm_ensemble(user_query, system_prompt)
+
+    @staticmethod
+    def _parse_agent_output(raw_output: Any) -> Dict[str, Any]:
+        if isinstance(raw_output, dict):
+            return raw_output
+
+        if isinstance(raw_output, str):
+            try:
+                parsed = json.loads(raw_output)
+                if isinstance(parsed, dict):
+                    return parsed
+            except json.JSONDecodeError:
+                return {"intent": "CHAT", "text": raw_output}
+
+        return {}
+
+    @staticmethod
+    def _apply_local_fallbacks(agent_output: Dict[str, Any], user_query: str) -> Dict[str, Any]:
+        normalized_query = user_query.strip()
+        lowered_query = normalized_query.lower()
+
+        if lowered_query == "current created lead":
+            return {"intent": "CHAT", "text": "I'm here to help with your CRM. What would you like to do?"}
+
+        update_patterns = [
+            re.compile(r"update\s+(?P<field>[\w\s]+?)\s+to\s+(?P<value>.+?)\s+for\s+(?P<object>\w+)\s+(?P<record_id>[\w-]+)$", re.IGNORECASE),
+            re.compile(r"update\s+(?P<object>\w+)\s+(?P<record_id>[\w-]+)\s+(?P<field>[\w\s]+?)\s+to\s+(?P<value>.+)$", re.IGNORECASE),
+        ]
+
+        for pattern in update_patterns:
+            match = pattern.fullmatch(normalized_query)
+            if not match:
+                continue
+
+            current_data = agent_output.get("data")
+            if current_data:
+                return agent_output
+
+            field = match.group("field").strip().lower().replace(" ", "_")
+            value = match.group("value").strip().strip('"')
+            return {
+                **agent_output,
+                "intent": "UPDATE",
+                "object_type": match.group("object").lower(),
+                "record_id": match.group("record_id"),
+                "data": {field: value},
+            }
+
+        return agent_output
+
     @staticmethod
     def _get_metadata() -> str:
         try:
@@ -82,12 +135,13 @@ class AiAgentService:
         - For Korean names like "박상열", map it to `last_name` (mandatory) if you only have one name string.
         
         CONVERSATIONAL CREATE FLOW:
-        - If a user wants to CREATE a record (lead, contact, opportunity, brand, model, product, asset, template) but hasn't provided mandatory info:
+        - If a user wants to CREATE a record (lead, contact, opportunity, brand, model, product, asset, task, template) but hasn't provided mandatory info:
           1. Use intent "CHAT".
           2. Acknowledge the request.
           3. Politely ask for missing info.
              - Lead/Contact: needs at least "last_name" and "status".
              - Asset: needs "vin".
+             - Task: needs "subject".
              - Template: needs "name" and "content".
           4. Do NOT use intent "CREATE" until you have the mandatory fields.
         
@@ -106,11 +160,11 @@ class AiAgentService:
         
         RESPONSE FORMAT (Strict JSON):
         {{
-            "intent": "QUERY" | "CREATE" | "UPDATE" | "DELETE" | "MANAGE" | "CHAT" | "RECOMMEND" | "MODIFY_UI",
+            "intent": "QUERY" | "CREATE" | "UPDATE" | "DELETE" | "MANAGE" | "CHAT" | "RECOMMEND",
             "text": "Helpful response here",
             "sql": "SELECT ... (if QUERY)",
             "data": {{ "field": "value" }} (if CREATE/UPDATE),
-            "object_type": "lead" | "contact" | "opportunity" | "brand" | "model" | "product" | "asset" | "message_template" | "message_send",
+            "object_type": "lead" | "contact" | "opportunity" | "brand" | "model" | "product" | "asset" | "task" | "message_template" | "message_send",
             "record_id": "ID_HERE",
             "score": 0.0 to 1.0 (confidence in this JSON)
         }}
@@ -123,14 +177,12 @@ class AiAgentService:
         q_low = user_query.lower()
         if "ai recommend" in q_low or "추천" in q_low:
             agent_output["intent"] = "RECOMMEND"
-        elif "table format" in q_low or "테이블 형식" in q_low or "테이블 모양" in q_low:
-             agent_output["intent"] = "MODIFY_UI"
         elif "send message" in q_low or "메시지 보내" in q_low:
              agent_output["intent"] = "CHAT"
              agent_output["text"] = "To send messages, please go to the [Send Messages] page. I can help you find templates or contacts to message here!"
 
         # ROBUST EXTRACTION: Fallback for "Manage [object] [record_id]"
-        if "manage" in user_query.lower() and (not agent_output.get("record_id") or agent_output.get("record_id") == "ID_HERE"):
+        if "manage" in user_query.lower():
             match = re.search(r"manage\s+(\w+)\s+([\w-]+)", user_query, re.IGNORECASE)
             if match:
                 agent_output["intent"] = "MANAGE"
@@ -172,9 +224,13 @@ class AiAgentService:
         if not valid_responses:
             return {"intent": "CHAT", "text": "All AI models failed to respond."}
 
-        # Pick the best response based on 'score'
+        # Pick the best response based on 'score' (provided by the model itself in our prompt)
+        # Sort by score descending
         valid_responses.sort(key=lambda x: x.get("score", 0), reverse=True)
-        return valid_responses[0]
+        
+        best = valid_responses[0]
+        logger.info(f"Ensemble picked model with score {best.get('score')}. Total models: {len(valid_responses)}")
+        return best
 
     @classmethod
     async def _call_cerebras(cls, query, system) -> Dict[str, Any]:
@@ -214,8 +270,10 @@ class AiAgentService:
     async def _call_gemini(cls, query, system) -> Dict[str, Any]:
         try:
             model = genai.GenerativeModel('gemini-1.5-flash')
+            # Combine system and user for simple call
             full_prompt = f"{system}\n\nUser Query: {query}\nResponse must be JSON."
             response = await asyncio.to_thread(model.generate_content, full_prompt)
+            # Basic JSON extraction from markdown
             text = response.text
             match = re.search(r'\{.*\}', text, re.DOTALL)
             if match:
@@ -245,24 +303,10 @@ class AiAgentService:
         if not data or not isinstance(data, dict): return {}
         cleaned = {}
         for k, v in data.items():
-            if v == "None" or v == "null" or v == "" or v == "ID_HERE": 
-                cleaned[k] = None
-            elif v in ["True", "true", True]: 
-                cleaned[k] = True
-            elif v in ["False", "false", False]: 
-                cleaned[k] = False
-            elif isinstance(v, str):
-                if v.isdigit():
-                    cleaned[k] = int(v)
-                else:
-                    num_clean = re.sub(r'[^\d.]', '', v)
-                    if num_clean and v.startswith(('₩', '$')):
-                        try: cleaned[k] = int(float(num_clean))
-                        except: cleaned[k] = v
-                    else:
-                        cleaned[k] = v
-            else:
-                cleaned[k] = v
+            if v == "None" or v == "null" or v == "": cleaned[k] = None
+            elif v in ["True", "true", True]: cleaned[k] = True
+            elif v in ["False", "false", False]: cleaned[k] = False
+            else: cleaned[k] = v
         return cleaned
 
     @classmethod
@@ -274,14 +318,7 @@ class AiAgentService:
         data = agent_output.get("data") or {}
         sql = agent_output.get("sql")
 
-        if record_id == "ID_HERE": record_id = None
-
         if intent == "CHAT": return agent_output
-
-        if intent == "MODIFY_UI":
-            # JS side handles the actual styling, backend just confirms
-            agent_output["text"] = "I've applied the new UI layout for you."
-            return agent_output
 
         if intent == "RECOMMEND":
             recommends = AIRecommendationService.get_ai_recommendations(db, limit=5)
@@ -300,41 +337,33 @@ class AiAgentService:
         
         if intent == "MANAGE":
             if not record_id:
-                if "just created" in user_query.lower() or "방금" in user_query:
-                    mapping_table = {"lead": "leads", "contact": "contacts", "opportunity": "opportunities"}
-                    table = mapping_table.get(obj)
-                    if table:
-                        last_res = db.execute(text(f"SELECT id FROM {table} WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 1")).fetchone()
-                        if last_res: record_id = last_res[0]
-
-            if not record_id:
                 return {"intent": "CHAT", "text": "I need a record ID to manage it. Please select a record from the list."}
             
             record_details = ""
-            if obj in ["lead", "leads"]:
+            if obj == "lead" or obj == "leads":
                 lead = LeadService.get_lead(db, record_id)
                 if lead: record_details = f"Lead: {lead.first_name} {lead.last_name} ({lead.status})"
-            elif obj in ["contact", "contacts"]:
+            elif obj == "contact" or obj == "contacts":
                 contact = ContactService.get_contact(db, record_id)
                 if contact: record_details = f"Contact: {contact.first_name} {contact.last_name} ({contact.email})"
-            elif obj in ["opportunity", "opportunities", "opps"]:
+            elif obj == "opportunity" or obj == "opportunities":
                 opp = OpportunityService.get_opportunity(db, record_id)
                 if opp: record_details = f"Opportunity: {opp.name} ({opp.stage} - ₩{opp.amount})"
-            elif obj in ["message_template", "template"]:
+            elif obj == "message_template" or obj == "template" or obj == "message_templates":
                 template = MessageTemplateService.get_template(db, record_id)
                 if template: record_details = f"Template: {template.name} ({template.subject})"
             
             if record_details:
                 fields_list = []
-                if obj in ["lead", "leads"]: fields_list = ["First Name", "Last Name", "Email", "Phone", "Status"]
-                elif obj in ["contact", "contacts"]: fields_list = ["First Name", "Last Name", "Email", "Phone", "Status"]
-                elif obj in ["opportunity", "opportunities", "opps"]: fields_list = ["Name", "Amount", "Stage", "Probability"]
+                if obj == "lead" or obj == "leads": fields_list = ["First Name", "Last Name", "Email", "Phone", "Status", "Lead Source"]
+                elif obj == "contact" or obj == "contacts": fields_list = ["First Name", "Last Name", "Email", "Phone", "Status"]
+                elif obj == "opportunity" or obj == "opportunities": fields_list = ["Name", "Amount", "Stage", "Probability"]
+                elif obj == "message_template" or obj == "template" or obj == "message_templates": fields_list = ["Name", "Subject", "Content", "Record Type"]
                 
                 button_html = " ".join([f"[{f}]" for f in fields_list])
                 agent_output["text"] = f"I've selected **{record_details}** (ID: {record_id}). \n\nFields you can update:\n{button_html}\n\nWhat would you like to do?"
-                agent_output["record_id"] = record_id
             else:
-                agent_output["text"] = f"I couldn't find the {obj} record with ID {record_id}."
+                agent_output["text"] = f"I couldn't find the {obj} record with ID {record_id}. If this is a new record, please specify all details needed for creation."
             
             return agent_output
 
@@ -360,10 +389,12 @@ class AiAgentService:
             
             if sql:
                 try:
+                    # Clean the object mapping for SQL queries (e.g. 'messages' -> 'message_sends')
                     sql = sql.replace("FROM messages", "FROM message_sends").replace("from messages", "from message_sends")
                     result = db.execute(text(sql))
                     agent_output["results"] = [dict(row._mapping) for row in result]
                     agent_output["sql"] = sql
+                    agent_output.setdefault("text", f"I searched the database for {obj or 'records'}.")
                     return agent_output
                 except Exception as e:
                     logger.error(f"SQL Error: {str(e)}")
@@ -404,7 +435,7 @@ class AiAgentService:
                 res = AssetService.create_asset(db, **data)
                 agent_output["text"] = f"Success! Registered Asset with VIN {res.vin} (ID: {res.id})."
                 return agent_output
-            elif obj in ["message_template", "template"]:
+            elif obj == "message_template" or obj == "template":
                 name = data.pop("name", "New Template")
                 res = MessageTemplateService.create_template(db, name=name, **data)
                 agent_output["text"] = f"Success! Created Template: {res.name} (ID: {res.id})."
@@ -441,7 +472,7 @@ class AiAgentService:
                 res = AssetService.update_asset(db, record_id, **data)
                 agent_output["text"] = f"Success! Updated Asset {record_id}." if res else f"Asset {record_id} not found."
                 return agent_output
-            elif obj in ["message_template", "template"]:
+            elif obj == "message_template" or obj == "template":
                 res = MessageTemplateService.update_template(db, record_id, **data)
                 agent_output["text"] = f"Success! Updated Template {record_id}." if res else f"Template {record_id} not found."
                 return agent_output
@@ -477,7 +508,7 @@ class AiAgentService:
                 success = AssetService.delete_asset(db, record_id)
                 agent_output["text"] = f"Success! Deleted Asset {record_id}." if success else f"Asset {record_id} not found."
                 return agent_output
-            elif obj in ["message_template", "template"]:
+            elif obj == "message_template" or obj == "template":
                 success = MessageTemplateService.delete_template(db, record_id)
                 agent_output["text"] = f"Success! Deleted Template {record_id}." if success else f"Template {record_id} not found."
                 return agent_output

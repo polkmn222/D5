@@ -1,6 +1,5 @@
 let isAiAgentMinimized = false;
 let isAiAgentMaximized = false;
-let agentTableStyle = 'default';
 
 function toggleAiAgent() {
     const win = document.getElementById('ai-agent-window');
@@ -105,18 +104,6 @@ async function sendAiMessage() {
         const loadingIndicator = document.getElementById(loadingId);
         if (loadingIndicator) loadingIndicator.remove();
 
-        // Handle UI modification intent
-        if (data.intent === 'MODIFY_UI' || (data.text && (data.text.includes('table format') || data.text.includes('테이블 형식')))) {
-            if (data.text.includes('compact') || data.text.includes('축소')) agentTableStyle = 'compact';
-            else if (data.text.includes('modern') || data.text.includes('모던')) agentTableStyle = 'modern';
-            else agentTableStyle = 'default';
-            
-            // Re-style current tables in the DOM
-            document.querySelectorAll('.agent-table').forEach(t => {
-                t.className = `agent-table agent-table-${agentTableStyle}`;
-            });
-        }
-
         if (data.text) {
             appendChatMessage('agent', data.text, null, data.sql, data.results, data.object_type);
         } else {
@@ -200,7 +187,7 @@ function renderResultsTable(results, objectType) {
                 <span style="font-size: 0.75rem; color: #706e6b; margin-left: auto; display: flex; align-items: center;">Click headers to sort</span>
             </div>
             <div style="overflow-x: auto;">
-                <table class="agent-table agent-table-${agentTableStyle}">
+                <table class="agent-table">
                     <thead>
                         <tr>
                             <th style="width: 40px;">Sel.</th>

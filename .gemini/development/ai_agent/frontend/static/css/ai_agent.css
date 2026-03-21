@@ -272,7 +272,7 @@
 
 /* Footer Styling */
 #ai-agent-footer {
-    padding: 24px;
+    padding: 24px 32px;
     background: var(--slds-white);
     border-top: 1px solid var(--slds-border);
 }
@@ -282,23 +282,24 @@
     align-items: center;
     background: #f4f6f9;
     border: 1px solid var(--slds-border);
-    border-radius: 24px;
-    padding: 4px 4px 4px 16px;
+    border-radius: 28px;
+    padding: 8px 8px 8px 24px;
     transition: all 0.2s;
+    min-height: 56px; /* Larger input area */
 }
 
 .input-wrapper:focus-within {
     background: white;
     border-color: var(--slds-brand);
-    box-shadow: 0 0 0 1px var(--slds-brand);
+    box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.1);
 }
 
 #ai-agent-input {
     flex-grow: 1;
     border: none;
     background: transparent;
-    padding: 10px 0;
-    font-size: 0.95rem;
+    padding: 12px 0;
+    font-size: 1.05rem; /* Larger font */
     outline: none;
     color: var(--slds-text);
 }
@@ -306,19 +307,42 @@
 .send-btn {
     background: var(--slds-brand);
     border: none;
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: transform 0.2s, background 0.2s;
 }
 
 .send-btn:hover {
     background: #014486;
+    transform: scale(1.05);
+}
+
+/* Custom Table Layout (Compact) */
+.agent-table-compact td {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+}
+.agent-table-compact th {
+    padding: 8px 12px;
+    font-size: 0.65rem;
+}
+
+/* Custom Table Layout (Modern Grid) */
+.agent-table-modern {
+    border: none !important;
+}
+.agent-table-modern td {
+    border-bottom: 8px solid white;
+    background: #f8f9fb;
+}
+.agent-table-modern tr:hover td {
+    background: #f1f4f9;
 }
 
 /* Animations */

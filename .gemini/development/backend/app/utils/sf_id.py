@@ -32,7 +32,6 @@ PREFIXES = {
     "Lead": "00Q",
     "Product": "01t",
     "Asset": "02i",
-
     "Message": "00P",
     "MessageTemplate": "00X",
     "VehicleSpecification": "avS",
