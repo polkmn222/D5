@@ -20,6 +20,49 @@ class SureMService:
     TOKEN_LOCK_ID = 43120419
 
     @staticmethod
+    def _broker_base_url() -> str:
+        return os.getenv("SUREM_BROKER_URL", "").strip().rstrip("/")
+
+    @staticmethod
+    def _broker_enabled() -> bool:
+        return bool(SureMService._broker_base_url())
+
+    @staticmethod
+    def _broker_headers() -> Dict[str, str]:
+        headers: Dict[str, str] = {}
+        secret = os.getenv("SUREM_BROKER_SECRET", "").strip()
+        if secret:
+            headers["X-Broker-Secret"] = secret
+        return headers
+
+    @staticmethod
+    def _broker_request(method: str, path: str, json_body: Optional[Dict[str, Any]] = None, files: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        base_url = SureMService._broker_base_url()
+        if not base_url:
+            return {"status": "error", "message": "SUREM_BROKER_URL is not configured."}
+
+        url = f"{base_url}{path}"
+        try:
+            response = requests.request(
+                method,
+                url,
+                headers=SureMService._broker_headers(),
+                json=json_body,
+                files=files,
+                timeout=30,
+            )
+            data = response.json()
+            if response.status_code >= 400:
+                if isinstance(data, dict):
+                    data.setdefault("status", "error")
+                    return data
+                return {"status": "error", "message": str(data)}
+            return data if isinstance(data, dict) else {"status": "success", "data": data}
+        except Exception as e:
+            logger.error(f"SureM broker request failed: {e}")
+            return {"status": "error", "message": str(e)}
+
+    @staticmethod
     def _supports_advisory_lock(db: Session) -> bool:
         bind = db.get_bind()
         return bind is not None and bind.dialect.name == "postgresql"
@@ -70,7 +113,7 @@ class SureMService:
         user_code = os.getenv("SUREM_USER_CODE")
         secret_key = os.getenv("SUREM_SECRET_KEY")
         auth_url = os.getenv("SUREM_AUTH_URL")
-        diagnostics = {
+        diagnostics: Dict[str, Any] = {
             "auth_url_present": bool(auth_url),
             "user_code_present": bool(user_code),
             "secret_key_present": bool(secret_key),
@@ -164,7 +207,24 @@ class SureMService:
                 logger.warning(f"Failed to release SureM advisory lock: {unlock_error}")
 
     @staticmethod
-    def debug_auth_status(db: Session) -> Dict[str, Any]:
+    def _get_persisted_image_key(db: Session, filename: str) -> Optional[Dict[str, str]]:
+        row = db.query(ServiceToken).filter(ServiceToken.service_name == f"{SureMService.IMAGE_CACHE_PREFIX}{filename}").first()
+        if row and SureMService._token_is_valid(row.access_token, row.expires_at, SureMService.IMAGE_REFRESH_MARGIN):
+            normalized_expires_at = SureMService._normalize_expires_at(row.expires_at)
+            return {
+                "imageKey": row.access_token,
+                "expiryDate": normalized_expires_at.isoformat() if normalized_expires_at else "",
+            }
+        return None
+
+    @staticmethod
+    def _persist_image_key(db: Session, filename: str, image_key: str, expiry_date: Optional[str]) -> None:
+        parsed_expiry = SureMService._parse_timestamp(expiry_date)
+        SureMService._upsert_secret(db, f"{SureMService.IMAGE_CACHE_PREFIX}{filename}", image_key, parsed_expiry)
+        db.commit()
+
+    @staticmethod
+    def debug_auth_status_direct(db: Session) -> Dict[str, Any]:
         token_row = db.query(ServiceToken).filter(ServiceToken.service_name == SureMService.TOKEN_SERVICE_NAME).first()
         env_access_token = os.getenv("SUREM_ACCESS_TOKEN")
         env_expires_at = os.getenv("SUREM_TOKEN_EXPIRES_AT")
@@ -215,37 +275,24 @@ class SureMService:
         return result
 
     @staticmethod
-    def _get_persisted_image_key(db: Session, filename: str) -> Optional[dict[str, str]]:
-        row = db.query(ServiceToken).filter(ServiceToken.service_name == f"{SureMService.IMAGE_CACHE_PREFIX}{filename}").first()
-        if row and SureMService._token_is_valid(row.access_token, row.expires_at, SureMService.IMAGE_REFRESH_MARGIN):
-            normalized_expires_at = SureMService._normalize_expires_at(row.expires_at)
-            return {
-                "imageKey": row.access_token,
-                "expiryDate": normalized_expires_at.isoformat() if normalized_expires_at else "",
-            }
-        return None
+    def debug_auth_status(db: Session) -> Dict[str, Any]:
+        if SureMService._broker_enabled():
+            result = SureMService._broker_request("GET", "/api/test/broker/test-auth")
+            result.setdefault("broker_enabled", True)
+            result.setdefault("broker_url", SureMService._broker_base_url())
+            return result
+        result = SureMService.debug_auth_status_direct(db)
+        result.setdefault("broker_enabled", False)
+        return result
 
     @staticmethod
-    def _persist_image_key(db: Session, filename: str, image_key: str, expiry_date: Optional[str]) -> None:
-        parsed_expiry = SureMService._parse_timestamp(expiry_date)
-        SureMService._upsert_secret(db, f"{SureMService.IMAGE_CACHE_PREFIX}{filename}", image_key, parsed_expiry)
-        db.commit()
-
-    @staticmethod
-    def send_sms(db: Session, text: str) -> dict:
+    def send_sms_direct(db: Session, text: str) -> Dict[str, Any]:
         token = SureMService.get_access_token(db)
         if not token:
             return {"status": "error", "message": "Failed to get SUREM_ACCESS_TOKEN."}
 
-        payload = {
-            "to": "01033903190",
-            "text": text,
-            "reqPhone": "025761112",
-        }
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {token}",
-        }
+        payload = {"to": "01033903190", "text": text, "reqPhone": "025761112"}
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {token}"}
 
         try:
             response = requests.post("https://rest.surem.com/api/v1/send/sms", headers=headers, json=payload, timeout=10)
@@ -259,7 +306,13 @@ class SureMService:
             return {"status": "error", "message": str(e)}
 
     @staticmethod
-    def upload_image(db: Session, file_content: bytes, filename: str) -> dict:
+    def send_sms(db: Session, text: str) -> Dict[str, Any]:
+        if SureMService._broker_enabled():
+            return SureMService._broker_request("POST", "/api/test/broker/send-sms", json_body={"text": text})
+        return SureMService.send_sms_direct(db, text)
+
+    @staticmethod
+    def upload_image_direct(db: Session, file_content: bytes, filename: str) -> Dict[str, Any]:
         cached = SureMService._get_persisted_image_key(db, filename)
         if cached:
             logger.info(f"Using cached SureM imageKey for {filename}")
@@ -292,12 +345,22 @@ class SureMService:
             return {"status": "error", "message": str(e)}
 
     @staticmethod
-    def send_mms(db: Session, subject: str, text: str, image_key: Optional[str] = None) -> dict:
+    def upload_image(db: Session, file_content: bytes, filename: str) -> Dict[str, Any]:
+        if SureMService._broker_enabled():
+            return SureMService._broker_request(
+                "POST",
+                "/api/test/broker/upload-image",
+                files={"file": (filename, file_content, "image/jpeg")},
+            )
+        return SureMService.upload_image_direct(db, file_content, filename)
+
+    @staticmethod
+    def send_mms_direct(db: Session, subject: str, text: str, image_key: Optional[str] = None) -> Dict[str, Any]:
         token = SureMService.get_access_token(db)
         if not token:
             return {"status": "error", "message": "Failed to get SUREM_ACCESS_TOKEN."}
 
-        payload = {
+        payload: Dict[str, Any] = {
             "to": "01097343368",
             "subject": subject,
             "text": text,
@@ -306,10 +369,7 @@ class SureMService:
         if image_key:
             payload["imageKey"] = image_key
 
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {token}",
-        }
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {token}"}
 
         try:
             response = requests.post("https://rest.surem.com/api/v1/send/mms", headers=headers, json=payload, timeout=10)
@@ -321,3 +381,13 @@ class SureMService:
         except Exception as e:
             logger.error(f"SureM send_mms Exception: {e}")
             return {"status": "error", "message": str(e)}
+
+    @staticmethod
+    def send_mms(db: Session, subject: str, text: str, image_key: Optional[str] = None) -> Dict[str, Any]:
+        if SureMService._broker_enabled():
+            return SureMService._broker_request(
+                "POST",
+                "/api/test/broker/send-mms",
+                json_body={"subject": subject, "text": text, "image_key": image_key},
+            )
+        return SureMService.send_mms_direct(db, subject, text, image_key)

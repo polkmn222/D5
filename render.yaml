@@ -1,21 +1,21 @@
 services:
   - type: web
-    name: d4
+    name: d4-surem-broker
     runtime: python
     rootDir: .gemini/development
     buildCommand: pip install -r ../../requirements.txt
     startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /
+    healthCheckPath: /docs
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.8
       - key: DATABASE_URL
         sync: false
-      - key: CELEBRACE_API_KEY
+      - key: SUREM_AUTH_URL
         sync: false
-      - key: GROQ_API_KEY
+      - key: SUREM_USER_CODE
         sync: false
-      - key: ChatGPT_API_Key
+      - key: SUREM_SECRET_KEY
         sync: false
-      - key: Gemini_API_Key
+      - key: SUREM_BROKER_SECRET
         sync: false

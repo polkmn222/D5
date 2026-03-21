@@ -93,3 +93,22 @@ def test_debug_auth_status_reports_missing_credentials(db, monkeypatch):
     assert result["auth_url_present"] is False
     assert result["user_code_present"] is False
     assert result["secret_key_present"] is False
+
+
+def test_send_sms_uses_broker_when_configured(db, monkeypatch):
+    monkeypatch.setenv("SUREM_BROKER_URL", "https://broker.example.com")
+    monkeypatch.setenv("SUREM_BROKER_SECRET", "shared-secret")
+
+    response = MagicMock()
+    response.status_code = 200
+    response.json.return_value = {"status": "success", "code": "A0000"}
+
+    with patch("backend.app.services.surem_service.requests.request", return_value=response) as mock_request:
+        result = SureMService.send_sms(db, "broker sms")
+
+    assert result["status"] == "success"
+    mock_request.assert_called_once()
+    args, kwargs = mock_request.call_args
+    assert args[0] == "POST"
+    assert args[1] == "https://broker.example.com/api/test/broker/send-sms"
+    assert kwargs["headers"]["X-Broker-Secret"] == "shared-secret"
