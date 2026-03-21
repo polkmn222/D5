@@ -55,7 +55,9 @@ class BaseService(Generic[T]):
                 # Filter out protected fields that should not be updated manually via kwargs
                 protected_fields = {"id", "created_at", "updated_at", "deleted_at"}
                 for key, value in kwargs.items():
-                    if key not in protected_fields and hasattr(db_obj, key):
+                    # CRITICAL FIX: Only update if value is NOT None. 
+                    # FastAPI routers pass None for missing optional Form fields, which wipes data.
+                    if key not in protected_fields and hasattr(db_obj, key) and value is not None:
                         setattr(db_obj, key, value)
                 db_obj.updated_at = get_kst_now_naive()
                 db.commit()
