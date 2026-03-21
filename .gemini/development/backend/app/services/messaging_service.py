@@ -36,7 +36,7 @@ class MessagingService:
             
             if record_type == "SMS":
                 # User mandate: SMS is fixed to 01033903190 (handled inside SureMService)
-                surem_response = SureMService.send_sms(text=content)
+                surem_response = SureMService.send_sms(db, text=content)
             elif record_type in ["LMS", "MMS"]:
                 image_key = None
                 if record_type == "MMS" and attachment_id:
@@ -55,7 +55,7 @@ class MessagingService:
                                 with open(abs_file_path, 'rb') as f:
                                     file_content = f.read()
                                 filename = os.path.basename(abs_file_path)
-                                upload_res = SureMService.upload_image(file_content, filename)
+                                upload_res = SureMService.upload_image(db, file_content, filename)
                                 if upload_res.get("status") == "success":
                                     image_key = upload_res.get("data", {}).get("imageKey")
                                     # Update attachment with the new key for future use
@@ -70,7 +70,7 @@ class MessagingService:
                     actual_subject = (content[:20] + '...') if len(content) > 20 else content
                 
                 # User mandate: LMS/MMS is fixed to 01097343368 (handled inside SureMService)
-                surem_response = SureMService.send_mms(subject=actual_subject, text=content, image_key=image_key)
+                surem_response = SureMService.send_mms(db, subject=actual_subject, text=content, image_key=image_key)
             
             if surem_response and surem_response.get("status") == "success" and surem_response.get("code") == "A0000":
                 send_status = "Sent"

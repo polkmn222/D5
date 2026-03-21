@@ -3,7 +3,7 @@ import logging
 import os
 import uuid
 from fastapi import APIRouter, Depends, Request, File, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from db.database import get_db
 from ..services.opportunity_service import OpportunityService
@@ -207,27 +207,13 @@ async def upload_template_image(file: UploadFile = File(...), db: Session = Depe
         if not file.content_type.startswith("image/"):
              return JSONResponse(status_code=400, content={"message": "Only image files are allowed."})
         
-        # Create directory if not exists
-        upload_dir = "app/static/uploads/templates"
-        if not os.path.exists(upload_dir):
-            os.makedirs(upload_dir)
-            
         file_extension = os.path.splitext(file.filename)[1]
         unique_filename = f"{uuid.uuid4()}{file_extension}"
-        file_path = os.path.join(upload_dir, unique_filename)
-        
-        # Resolve relative to project root
-        abs_path = os.path.abspath(file_path)
-        os.makedirs(os.path.dirname(abs_path), exist_ok=True)
 
         file_content = await file.read()
         file_size = len(file_content)
-        
-        with open(abs_path, "wb") as buffer:
-            buffer.write(file_content)
-            
-        # NEW: Upload to SureM and get provider_key (imageKey)
-        upload_res = SureMService.upload_image(file_content, file.filename)
+
+        upload_res = SureMService.upload_image(db, file_content, file.filename)
         image_key = None
         if upload_res.get("status") == "success":
             image_key = upload_res.get("data", {}).get("imageKey")
@@ -240,7 +226,7 @@ async def upload_template_image(file: UploadFile = File(...), db: Session = Depe
         attachment = AttachmentService.create_attachment(
             db,
             name=file.filename,
-            file_path=f"/static/uploads/templates/{unique_filename}",
+            file_path=f"surem://templates/{unique_filename}",
             content_type=file.content_type,
             file_size=file_size,
             parent_type="MessageTemplate",
@@ -301,4 +287,3 @@ async def delete_template(template_id: str, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error deleting template: {e}")
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
-

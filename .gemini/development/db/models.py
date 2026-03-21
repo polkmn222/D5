@@ -167,3 +167,12 @@ class Attachment(BaseModel):
     parent_id = Column(String(18), nullable=True) # Optional generic link
     parent_type = Column(String, nullable=True)   # e.g., 'MessageTemplate'
     provider_key = Column(String, nullable=True)   # SUREM imageKey
+
+
+class ServiceToken(Base):
+    __tablename__ = "service_tokens"
+
+    service_name = Column(String, primary_key=True, index=True)
+    access_token = Column(Text, nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), default=get_kst_now_naive)

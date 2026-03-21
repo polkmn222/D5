@@ -274,11 +274,11 @@ async def lookup_search(
 
 
 @router.get("/api/surem/test-auth")
-async def test_surem_auth():
+async def test_surem_auth(db: Session = Depends(get_db)):
     from backend.app.services.surem_service import SureMService
     try:
         logger.info("Testing SureM Authentication...")
-        token = SureMService.get_access_token()
+        token = SureMService.get_access_token(db)
         if token:
             return {"status": "success", "message": "Authentication successful.", "token": token[:10] + "..." + token[-10:] if len(token) > 20 else token}
         else:
@@ -286,4 +286,3 @@ async def test_surem_auth():
     except Exception as e:
         logger.error(f"Error during SureM auth test: {e}")
         return {"status": "error", "message": str(e)}
-

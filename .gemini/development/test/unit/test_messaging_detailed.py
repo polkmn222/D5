@@ -31,7 +31,7 @@ def test_send_sms_success(db):
         
         assert msg is not None
         assert msg.status == "Sent"
-        mock_send_sms.assert_called_once_with(text="Hello SMS")
+        mock_send_sms.assert_called_once_with(db, text="Hello SMS")
 
 def test_send_lms_success(db):
     with patch("backend.app.services.surem_service.SureMService.send_mms") as mock_send_mms:
@@ -41,7 +41,7 @@ def test_send_lms_success(db):
         
         assert msg is not None
         assert msg.status == "Sent"
-        mock_send_mms.assert_called_once()
+        mock_send_mms.assert_called_once_with(db, subject="GK CRM Message", text="Hello LMS", image_key=None)
 
 def test_send_mms_success_with_attachment(db):
     unique_id = uuid.uuid4().hex[:8]
@@ -63,7 +63,7 @@ def test_send_mms_success_with_attachment(db):
         
         assert msg is not None
         assert msg.status == "Sent"
-        mock_send_mms.assert_called_once_with(subject="GK CRM Message", text="Hello MMS", image_key=f"IMG_KEY_{unique_id}")
+        mock_send_mms.assert_called_once_with(db, subject="GK CRM Message", text="Hello MMS", image_key=f"IMG_KEY_{unique_id}")
 
 def test_send_message_failure(db):
     with patch("backend.app.services.surem_service.SureMService.send_sms") as mock_send_sms:
