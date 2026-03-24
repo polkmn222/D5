@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Salesforce Home - AI CRM{% endblock %}
+
+{% block content %}
+<div class="dashboard-grid">
+    <!-- Main Content Area -->
+    <div class="main-column">
+
+        <!-- Quarterly Performance (Sales Pipeline) -->
+        <div class="sf-card">
+            <div class="sf-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Quarterly Performance (Sales Pipeline)</span>
+                <span style="font-size: 0.75rem; color: var(--text-label); font-weight: normal;">This weekend</span>
+            </div>
+            <div style="padding: 1rem; border-top: 1px solid var(--border);">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem;">
+                    <div><small style="color: var(--text-label)">CLOSED WON</small><br><strong style="font-size: 1.25rem;">₩ {{ performance.closed_won|safe if performance.closed_won else 0 }}</strong></div>
+                    <div style="text-align: right;"><small style="color: var(--text-label)">TARGET</small><br><strong style="font-size: 1.25rem;">₩ 1,000,000,000</strong></div>
+                </div>
+                
+                <!-- Stage-based Progress Bars -->
+                <div class="pipeline-chart" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    {% set ns = namespace(max_stage_amt=0) %}
+                    {% for stage in performance.by_stage %}
+                        {% set amt = stage.amount|replace(',', '')|float %}
+                        {% if amt > ns.max_stage_amt %}{% set ns.max_stage_amt = amt %}{% endif %}
+                    {% endfor %}
+                    
+                    {% for stage in performance.by_stage %}
+                    <div class="chart-row" style="display: flex; align-items: center; gap: 1rem;">
+                        <div style="width: 140px; font-size: 0.75rem; color: var(--text-label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ stage.label }}</div>
+                        <div style="flex-grow: 1; height: 16px; background: #f3f3f3; border-radius: 8px; position: relative;">
+                            {% set stage_amt = stage.amount|replace(',', '')|float if stage.amount else 0 %}
+                            {% set stage_pct = (stage_amt / ns.max_stage_amt * 100) if ns.max_stage_amt > 0 else 0 %}
+                            {% set bar_color = '#3498db' %}
+                            {% if stage.label == 'Qualification' %}{% set bar_color = '#3498db' %}
+                            {% elif stage.label == 'Test Drive' %}{% set bar_color = '#1abc9c' %}
+                            {% elif stage.label == 'Proposal/Price Quote' %}{% set bar_color = '#f39c12' %}
+                            {% elif stage.label == 'Negotiation/Review' %}{% set bar_color = '#9b59b6' %}
+                            {% elif stage.label == 'Closed Won' %}{% set bar_color = '#2ecc71' %}
+                            {% elif stage.label == 'Closed Lost' %}{% set bar_color = '#e74c3c' %}{% endif %}
+                            <div style="width: {{ stage_pct if stage_pct <= 100 else 100 }}%; background: {{ bar_color }}; height: 100%; border-radius: 8px;"></div>
+                        </div>
+                        <div style="width: 100px; text-align: right; font-size: 0.75rem; font-weight: 600;">{{ stage.amount | currency }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div id="ai-recommendation-results" style="display: none;">
+            {% if recommended_opportunities %}
+            <!-- Recommended Deals Table -->
+            <div class="sf-card" style="margin-bottom: 1rem;">
+                <div class="sf-card-header" style="color: var(--nav-blue); display: flex; align-items: center; gap: 0.5rem;">
+                    <span>✨ AI Recommended Deals</span>
+                </div>
+                <table class="sf-table">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(this, 0)">Name</th>
+                            <th onclick="sortTable(this, 1)">Amount</th>
+                            <th onclick="sortTable(this, 2)">Stage</th>
+                            <th onclick="sortTable(this, 3)">Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for opp in recommended_opportunities %}
+                        <tr>
+                            <td><a href="/opportunities/{{ opp.id }}" style="text-decoration: none; color: var(--nav-blue);"><strong>{{ opp.name }}</strong></a></td>
+                            <td>₩ {{ "{:,}".format(opp.amount) if opp.amount else '0' }}</td>
+                            <td><span class="badge badge-{{ opp.stage|lower|replace(' ', '-') }}">{{ opp.stage }}</span></td>
+                            <td style="font-size: 0.8rem; color: var(--text-label);">{{ opp.created_at.strftime('%Y-%m-%d') if opp.created_at else '' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Recent Opportunities -->
+        <div class="sf-card">
+            <div class="sf-card-header">
+                <span>Recent Opportunities</span>
+            </div>
+            <table class="sf-table">
+                <thead>
+                    <tr>
+                        <th onclick="sortTable(this, 0)">Name</th>
+                        <th onclick="sortTable(this, 1)">Amount</th>
+                        <th onclick="sortTable(this, 2)">Stage</th>
+                        <th onclick="sortTable(this, 3)">Temperature</th>
+                        <th onclick="sortTable(this, 4)">Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for opp in opportunities %}
+                    <tr>
+                        <td><a href="/opportunities/{{ opp.id }}" style="text-decoration: none; color: var(--nav-blue);"><strong>{{ opp.name }}</strong></a></td>
+                        <td>₩ {{ "{:,}".format(opp.amount) if opp.amount else '0' }}</td>
+                        <td><span class="badge badge-{{ opp.stage|lower|replace(' ', '-') }}">{{ opp.stage }}</span></td>
+                        <td>
+                            {% if opp.temperature == 'Hot' %}
+                                <span style="color: #e74c3c; font-weight: bold;">🔥 Hot</span>
+                            {% elif opp.temperature == 'Warm' %}
+                                <span style="color: #f39c12; font-weight: bold;">☀️ Warm</span>
+                            {% elif opp.temperature == 'Cold' %}
+                                <span style="color: #3498db; font-weight: bold;">❄️ Cold</span>
+                            {% else %}
+                                {{ opp.temperature | format_value }}
+                            {% endif %}
+                        </td>
+                        <td style="font-size: 0.8rem; color: var(--text-label);">{{ opp.created_at.strftime('%Y-%m-%d') if opp.created_at else '' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Sidebar Area -->
+    <div class="sidebar-column">
+        <div class="sf-card">
+            <div class="sf-card-header">Recent Records</div>
+            <ul style="list-style: none;">
+                {% for record in recent_records %}
+                <li style="margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <div style="width: 24px; height: 24px; background: {{ ' #49a5e1' if record.type == 'Lead' else '#a094ed' if record.type == 'Contact' else '#fcb95b' if record.type == 'Opportunity' else '#a094ed' }}; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.7rem; font-weight: bold;">
+                        {{ record.type[0] }}
+                    </div>
+                    <a href="{{ record.url }}" style="text-decoration: none; color: var(--nav-blue); font-size: 0.85rem;">{{ record.name if record.name else 'Unnamed' }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- AI Recommend Send Messages -->
+        <div class="sf-card" style="text-align: center; padding: 1.5rem 1rem; background: linear-gradient(180deg, #f0f7ff 0%, #ffffff 100%); margin-bottom: 1rem;">
+            <h2 style="font-size: 1.1rem; margin-bottom: 0.5rem; font-weight: 400;">AI Recommend<br><small style="font-size: 0.8rem; color: var(--text-label);">Send Messages</small></h2>
+            <p style="font-size: 0.75rem; color: var(--text-label); margin-bottom: 1rem;">Best deals based on history.</p>
+            <button onclick="startAiRecommend(this)" id="ai-recommend-btn" class="btn btn-primary" style="width: 100%; font-size: 0.9rem;">Start Recommend</button>
+        </div>
+
+        <!-- Send Messages -->
+        <div class="sf-card" style="margin-bottom: 2rem;">
+            <div class="sf-card-header">Send Messages</div>
+            <div style="padding: 1rem;">
+                <p style="font-size: 0.85rem; color: var(--text-label); margin-bottom: 1rem;">Send automated follow-ups and marketing content to your leads.</p>
+                <button onclick="window.location.href='/messaging/ui'" class="btn btn-primary" style="width: 100%; border-radius: 20px; font-weight: 700;">Start Messages</button>
+            </div>
+        </div>
+
+        <!-- AI Agent Integration -->
+        {% include 'ai_agent.html' %}
+    </div>
+</div>
+{% endblock %}

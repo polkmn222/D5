@@ -1,0 +1,45 @@
+{
+  "updated": {
+    "models_brand_filled": 4,
+    "products_model_filled": 11,
+    "products_brand_filled": 11,
+    "leads_brand_filled": 127,
+    "leads_model_filled": 135,
+    "leads_product_filled": 134,
+    "assets_contact_filled": 23,
+    "assets_product_filled": 21,
+    "assets_brand_filled": 32,
+    "assets_model_filled": 32,
+    "opps_contact_filled": 49,
+    "opps_product_filled": 222,
+    "opps_brand_filled": 222,
+    "opps_model_filled": 119,
+    "opps_asset_filled": 297,
+    "messages_contact_filled": 16,
+    "messages_template_filled": 260
+  },
+  "remaining": {
+    "leads_missing_brand": 0,
+    "leads_missing_model": 0,
+    "leads_missing_product": 0,
+    "models_missing_brand": 0,
+    "products_missing_brand": 0,
+    "products_missing_model": 0,
+    "assets_missing_contact": 0,
+    "assets_missing_product": 0,
+    "assets_missing_brand": 0,
+    "assets_missing_model": 0,
+    "opps_missing_contact": 0,
+    "opps_missing_product": 0,
+    "opps_missing_brand": 0,
+    "opps_missing_model": 0,
+    "opps_missing_asset": 0,
+    "messages_missing_contact": 0,
+    "messages_missing_template": 0
+  },
+  "notes": {
+    "contacts": "No direct CRM lookup fields to backfill.",
+    "brands": "Top-level Brand parent lookup remains optional and was left unchanged.",
+    "templates": "No required CRM lookup field was backfilled on template records."
+  }
+}

@@ -1,0 +1,22 @@
+<div class="field-grid sf-detail-meta-grid">
+    <div class="sf-field-item sf-field-item--readonly-meta">
+        <div class="sf-field-label">Created Date</div>
+        <div class="sf-field-value">{{ created_at | datetime_format | safe if created_at else '&nbsp;'|safe }}</div>
+    </div>
+    <div class="sf-field-item sf-field-item--readonly-meta">
+        <div class="sf-field-label">Last Modified Date</div>
+        <div class="sf-field-value">{{ updated_at | datetime_format | safe if updated_at else '&nbsp;'|safe }}</div>
+    </div>
+    <div class="sf-field-item sf-field-item--readonly-meta">
+        <div class="sf-field-label">Created By</div>
+        <div class="sf-field-value">
+            <span class="sf-system-meta-link">{{ created_by_name | default('admin', true) }}</span>
+        </div>
+    </div>
+    <div class="sf-field-item sf-field-item--readonly-meta">
+        <div class="sf-field-label">Last Modified By</div>
+        <div class="sf-field-value">
+            <span class="sf-system-meta-link">{{ updated_by_name | default('admin', true) }}</span>
+        </div>
+    </div>
+</div>

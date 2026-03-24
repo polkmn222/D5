@@ -1,0 +1,163 @@
+:root {
+    --primary: #0070d2;
+    --hover: #005fb2;
+    --background: #f3f2f1;
+    --surface: #ffffff;
+    --text: #080707;
+    --text-label: #3e3e3c;
+    --border: #dddbda;
+    --success: #2e844a;
+    --error: #ea001e;
+    --header-bg: #f3f3f3;
+    --nav-blue: #0176d3;
+    --shadow: 0 2px 2px 0 rgba(0,0,0,0.1);
+    --radius: 0.25rem;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { 
+    font-family: 'Inter', -apple-system, system-ui, sans-serif; 
+    background-color: var(--background);
+    color: var(--text);
+}
+
+/* Header & Navigation Bar */
+.sf-header {
+    background: white;
+    border-bottom: 1px solid var(--border);
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.sf-tabs {
+    background: white;
+    display: flex;
+    padding: 0 1rem;
+    border-bottom: 3px solid var(--nav-blue);
+}
+
+.sf-tab {
+    padding: 0.75rem 1rem;
+    color: var(--text-label);
+    text-decoration: none;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    border-top: 3px solid transparent;
+}
+
+.sf-tab.active {
+    background: #eef4ff;
+    border-top: 3px solid var(--nav-blue);
+    color: var(--nav-blue);
+}
+
+/* Base Buttons */
+.btn {
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: white;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    transition: 0.2s;
+}
+
+.btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+.btn-primary:hover { background: var(--hover); }
+
+/* Layout Containers */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 1rem;
+    padding: 1rem;
+}
+/* Salesforce Edit Footer */
+.sf-edit-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid var(--border);
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: center;
+    box-shadow: 0 -2px 4px rgba(0,0,0,0.05);
+    z-index: 1000;
+}
+
+.sf-edit-footer-content {
+    display: flex;
+    gap: 0.75rem;
+}
+
+/* Inline Edit Contexts */
+.sf-editable-field {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 1.5rem;
+}
+
+.sf-pencil-icon {
+    opacity: 0;
+    cursor: pointer;
+    color: #dddbda;
+    transition: opacity 0.2s;
+    font-size: 0.75rem;
+    padding: 2px;
+}
+
+body.sf-editing .sf-pencil-icon {
+    display: none !important;
+}
+
+.sf-editable-field:hover .sf-pencil-icon {
+    opacity: 1;
+}
+
+.sf-inline-input {
+    width: 100%;
+    padding: 4px;
+    border: 1px solid var(--primary);
+    border-radius: 2px;
+    font-size: 0.8125rem;
+}
+
+/* --- SALESFORCE DROPDOWNS --- */
+.sf-dropdown {
+    position: relative;
+    display: inline-block;
+}
+.sf-dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    background-color: white;
+    min-width: 200px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    z-index: 1000;
+    margin-top: 4px;
+}
+.sf-dropdown-content a {
+    color: var(--text-main);
+    padding: 8px 12px;
+    text-decoration: none;
+    display: block;
+    font-size: 0.85rem;
+}
+.sf-dropdown-content a:hover {
+    background-color: #f3f3f3;
+}
+.sf-dropdown.active .sf-dropdown-content {
+    display: block;
+}
+.view-selector-menu {
+    left: 0;
+    right: auto;
+}

@@ -1,0 +1,58 @@
+{
+  "new_contacts": 10,
+  "new_leads": 10,
+  "new_opportunities": 10,
+  "today_contacts_total": 11,
+  "today_leads_total": 10,
+  "today_opportunities_total": 13,
+  "created_ids": {
+    "contacts": [
+      "003YTYDG9Cg2u4rYXA",
+      "0039IBdmuuDJpFlQBL",
+      "003ROLU9MXPOWn9Y1H",
+      "003FEDs6MHYL5LUYZ1",
+      "003KaHzqrDbUQf2IRG",
+      "003OBKj4PJaYpnBYZS",
+      "003AKX3z9y2tB5AYBU",
+      "003EkoIonDoSUd0ISG",
+      "003fM4hVrD9ZUHhQUO",
+      "003Q4KRnA7BAs5JILT"
+    ],
+    "leads": [
+      "00Qvs8slfTrHDrZEQW",
+      "00Q8QXEUkMcm3ggUXA",
+      "00Qryf85RfqhDceEIE",
+      "00QwurBNzIZM5ScEWL",
+      "00QG6bKOKFIzYwjM4F",
+      "00QFLi747HSHrNT2Q1",
+      "00QnmAzDQHsuxqfE3A",
+      "00Qa0MSgtAAlwWzETJ",
+      "00QoumYRVolYfQvEOK",
+      "00QaroC1PmSoaQ8EKJ"
+    ],
+    "opportunities": [
+      "0065FhjpB3BRPUMQI5",
+      "006JmBQ857vOjdfIDC",
+      "006vZUaSyhCXXJIQF5",
+      "006FuM1xdDYGgJzIRL",
+      "006UomApiEnrFpXISU",
+      "006pCWnAhnKmmNvQFJ",
+      "006OAo9Y0srJ7HsYEK",
+      "006SYlqFmWzTI6wYUG",
+      "006KoLv6KfINpXcIJL",
+      "006raTqllbtz9nSABQ"
+    ]
+  },
+  "stages_used": [
+    "Prospecting",
+    "Qualification",
+    "Test Drive",
+    "Value Proposition",
+    "Proposal/Price Quote",
+    "Negotiation/Review",
+    "Closed Won",
+    "Closed Lost",
+    "Qualification",
+    "Test Drive"
+  ]
+}

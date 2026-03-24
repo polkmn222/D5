@@ -1,0 +1,109 @@
+<!-- AI Agent Assets -->
+<link rel="stylesheet" href="/ai-agent/static/css/ai_agent.css">
+<script src="/ai-agent/static/js/ai_agent.js" defer></script>
+
+<!-- AI Agent Trigger Button -->
+<div style="padding: 0 1rem 1rem;">
+    <button class="btn" style="width: 100%; background: #0176d3; color: white; border-radius: 20px; padding: 0.75rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-weight: 700; border: none; cursor: pointer;" onclick="toggleAiAgent()">
+        <span style="background: white; color: #0176d3; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem;">🤖</span>
+        Ask AI Agent
+    </button>
+</div>
+
+<!-- AI Agent Chat Window -->
+<div id="ai-agent-window" class="agent-hidden">
+    <!-- Window Header -->
+    <div id="ai-agent-header" style="background: white; padding: 16px 24px; border-bottom: 1px solid #dddbda; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 32px; height: 32px; background: #fcb95b; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.9rem; box-shadow: 0 2px 4px rgba(252,185,91,0.2);">🤖</div>
+            <div class="agent-header-copy">
+                <span style="font-weight: 700; color: #080707; font-size: 1rem; letter-spacing: 0.02em;">AI AGENT</span>
+                <span class="agent-header-subtitle">English-first CRM copilot for records, follow-ups, and messaging.</span>
+            </div>
+        </div>
+        <div id="ai-agent-header-actions" style="display: flex; gap: 12px; align-items: center;">
+            <button onclick="minimizeAiAgent()" style="background: none; border: none; cursor: pointer; font-size: 1.5rem; color: #747474; padding: 4px; line-height: 1;">_</button>
+            <button onclick="maximizeAiAgent()" style="background: none; border: none; cursor: pointer; font-size: 1.2rem; color: #747474; padding: 4px; line-height: 1;">⛶</button>
+            <button id="ai-agent-reset-btn" class="agent-reset-btn" onclick="resetAiAgent()">Reset Agent</button>
+        </div>
+    </div>
+
+    <!-- Window Body with Sidebar -->
+    <div class="ai-agent-main-container">
+        <!-- Quick Access Guide Sidebar -->
+        <div class="quick-guide-sidebar">
+            <div class="quick-guide-hero">
+                <p class="quick-guide-kicker">AI Quick Guide</p>
+                <h3>Start with a clear task</h3>
+                <p>Start in English with a direct CRM task, then refine the next step in chat.</p>
+            </div>
+
+            <div class="quick-guide-section">
+                <div class="quick-guide-section-title">Browse Records</div>
+                <div class="quick-guide-grid">
+                    <button class="quick-btn quick-card" onclick="sendQuickMessage('Show all Leads')"><span class="quick-card-icon">👥</span><span><strong>All Leads</strong><small>Open the latest lead list</small></span></button>
+                    <button class="quick-btn quick-card" onclick="sendQuickMessage('Show all Contacts')"><span class="quick-card-icon">📇</span><span><strong>All Contacts</strong><small>Review contact records</small></span></button>
+                    <button class="quick-btn quick-card" onclick="sendQuickMessage('Show all Opportunities')"><span class="quick-card-icon">💼</span><span><strong>All Opportunities</strong><small>See current pipeline items</small></span></button>
+                    <button class="quick-btn quick-card" onclick="sendQuickMessage('Show recent Opportunities')"><span class="quick-card-icon">🕒</span><span><strong>Recent Opps</strong><small>Check newly updated deals</small></span></button>
+                </div>
+            </div>
+
+            <div class="quick-guide-section">
+                <div class="quick-guide-section-title">Agent Actions</div>
+                <div class="quick-guide-grid">
+                    <button class="quick-btn quick-card" onclick="sendQuickMessage('AI Recommend')"><span class="quick-card-icon">✨</span><span><strong>AI Recommend</strong><small>Surface recommended deals</small></span></button>
+                    <button class="quick-btn quick-card" onclick="sendQuickMessage('Change AI Recommend')"><span class="quick-card-icon">🎨</span><span><strong>Change AI Recommend</strong><small>Change the recommendation logic for the home card</small></span></button>
+                    <button class="quick-btn quick-card" onclick="sendQuickMessage('Show my top deals')"><span class="quick-card-icon">🏆</span><span><strong>Top Deals</strong><small>Ask for top-value opportunities</small></span></button>
+                    <button class="quick-btn quick-card" onclick="sendQuickMessage('List my Leads')"><span class="quick-card-icon">📝</span><span><strong>My Leads</strong><small>Get a quick personal list</small></span></button>
+                </div>
+            </div>
+
+            <div class="quick-guide-note">
+                <strong>Examples</strong>
+                <span>`create lead` · `show all contacts` · `show the lead I just created` · `delete that contact`</span>
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div id="ai-agent-body">
+            <div style="text-align: center; color: #706e6b; font-size: 0.75rem; margin-bottom: 20px; font-weight: 500;">CONVERSATION STARTED</div>
+            
+            <!-- Welcome Message -->
+            <div class="msg-agent">
+                <div class="msg-agent-header">
+                    <div class="msg-agent-icon">🤖</div>
+                    <span style="font-size: 0.8rem; font-weight: 700; color: #3e3e3c;">AI AGENT</span>
+                </div>
+                <div class="msg-agent-content">
+                    <div class="msg-agent-text">Hello! I'm your AI Agent. I can help you manage <strong>Leads</strong>, <strong>Contacts</strong>, <strong>Opportunities</strong>, <strong>Products</strong>, and more with natural English commands.</div>
+                    <div class="agent-welcome-tips">
+                        <button class="welcome-tip" onclick="sendQuickMessage('create lead')">Create a lead</button>
+                        <button class="welcome-tip" onclick="sendQuickMessage('show all contacts')">Browse contacts</button>
+                        <button class="welcome-tip" onclick="sendQuickMessage('show the lead I just created')">Open last created record</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Window Footer -->
+    <div id="ai-agent-footer">
+        <div id="ai-agent-selection-bar" class="selection-bar is-hidden">
+            <div class="selection-bar-copy">
+                <span class="selection-bar-title">Selection Ready</span>
+                <span id="ai-agent-selection-summary">No records selected</span>
+                <span id="ai-agent-selection-detail" class="selection-bar-detail">Select records to prepare bulk actions.</span>
+            </div>
+            <div class="selection-bar-actions">
+                <button class="selection-action-btn" onclick="clearActiveSelection()">Clear</button>
+                <button class="selection-action-btn selection-action-primary" onclick="triggerSelectionMessaging()">Send Message</button>
+            </div>
+        </div>
+        <div class="input-wrapper">
+            <input type="text" id="ai-agent-input" placeholder="Type a message or command..." onkeypress="if(event.key === 'Enter') sendAiMessage()">
+            <button class="send-btn" onclick="sendAiMessage()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+        </div>
+    </div>
+</div>

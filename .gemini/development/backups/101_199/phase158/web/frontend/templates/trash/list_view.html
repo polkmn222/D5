@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="sf-container">
+    <div class="sf-header-context">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <div style="width: 40px; height: 40px; background: #706e6b; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+            </div>
+            <div>
+                <nav class="sf-breadcrumb">
+                    <ol><li><span>CRM</span></li></ol>
+                </nav>
+                <h1 class="sf-page-title">Recycle Bin</h1>
+            </div>
+        </div>
+    </div>
+
+    <div class="sf-card" style="margin-top: 1rem; overflow: hidden;">
+        <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); background: #fbfbfb; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.85rem; color: #666;">{{ items|length }} items</span>
+        </div>
+        
+        <table class="sf-table">
+            <thead>
+                <tr>
+                    <th>Record Name</th>
+                    <th>Object Type</th>
+                    <th>Deleted Date</th>
+                    <th style="width: 200px; text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td><strong>{{ item.name }}</strong></td>
+                    <td><span class="sf-badge">{{ item.type }}</span></td>
+                    <td>{{ item.deleted_at|datetime_format }}</td>
+                    <td style="text-align: right;">
+                        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                            <form action="/trash/restore" method="POST" style="margin: 0;">
+                                <input type="hidden" name="object_type" value="{{ item.object_type }}">
+                                <input type="hidden" name="record_id" value="{{ item.id }}">
+                                <button type="submit" class="btn" style="color: var(--primary);">Restore</button>
+                            </form>
+                            <button class="btn" style="color: var(--error);" onclick="confirmPermanentDelete('{{ item.object_type }}', '{{ item.id }}', '{{ item.name|e }}')">Delete Permanently</button>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" style="text-align: center; padding: 3rem; color: #706e6b;">
+                        <div style="margin-bottom: 1rem;">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#dddbda" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                        </div>
+                        The Recycle Bin is empty.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function confirmPermanentDelete(objType, id, name) {
+        showConfirmModal(
+            'Permanent Delete',
+            `Are you sure you want to permanently delete "${name}"? This action cannot be undone.`,
+            () => {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/trash/hard-delete';
+                
+                const typeInput = document.createElement('input');
+                typeInput.type = 'hidden';
+                typeInput.name = 'object_type';
+                typeInput.value = objType;
+                
+                const idInput = document.createElement('input');
+                idInput.type = 'hidden';
+                idInput.name = 'record_id';
+                idInput.value = id;
+                
+                form.appendChild(typeInput);
+                form.appendChild(idInput);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        );
+    }
+</script>
+{% endblock %}

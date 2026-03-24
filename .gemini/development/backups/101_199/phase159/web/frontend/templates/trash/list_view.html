@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Recycle Bin - Salesforce{% endblock %}
+
+{% block content %}
+<div style="background: white; border-bottom: 1px solid var(--border); padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+    <div style="display: flex; align-items: center; gap: 1rem;">
+        <div style="width: 32px; height: 32px; background: #706e6b; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+        </div>
+        <div>
+            <nav style="font-size: 0.75rem; color: var(--text-label); margin-bottom: 0.25rem;">
+                System
+            </nav>
+            <h1 style="font-size: 1.25rem; font-weight: 700;">Recycle Bin</h1>
+        </div>
+    </div>
+</div>
+
+<div style="padding: 1rem;">
+    <div class="sf-card" style="padding: 0; overflow: hidden;">
+        <div style="padding: 0.5rem 1rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #fafaf9;">
+            <div style="font-size: 0.75rem; color: var(--text-label);">
+                {{ items|length }} items • Sorted by Deleted Date • Filtered by All Deleted Records • Updated just now
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <input type="text" placeholder="Search this list..." class="btn" style="width: 200px; text-align: left;" oninput="filterTrashTable(this.value)">
+            </div>
+        </div>
+        
+        <table class="sf-table" id="trash-table">
+            <thead>
+                <tr>
+                    <th>Record Name</th>
+                    <th>Object Type</th>
+                    <th>Deleted Date</th>
+                    <th style="width: 250px; text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr class="trash-row">
+                    <td><strong>{{ item.name }}</strong></td>
+                    <td><span class="sf-badge">{{ item.type }}</span></td>
+                    <td>{{ item.deleted_at|datetime_format }}</td>
+                    <td style="text-align: right;">
+                        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                            <form action="/trash/restore" method="POST" style="margin: 0;">
+                                <input type="hidden" name="object_type" value="{{ item.object_type }}">
+                                <input type="hidden" name="record_id" value="{{ item.id }}">
+                                <button type="submit" class="btn" style="color: var(--nav-blue); font-weight: 600;">Restore</button>
+                            </form>
+                            <button class="btn" style="color: var(--error);" onclick="confirmPermanentDelete('{{ item.object_type }}', '{{ item.id }}', '{{ item.name|e }}')">Delete Permanently</button>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" style="text-align: center; padding: 3rem; color: #706e6b;">
+                        <div style="margin-bottom: 1rem;">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#dddbda" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                        </div>
+                        The Recycle Bin is empty.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function filterTrashTable(query) {
+        const searchTerm = query.toLowerCase();
+        const rows = document.querySelectorAll('.trash-row');
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            row.style.display = text.includes(searchTerm) ? '' : 'none';
+        });
+    }
+
+    function confirmPermanentDelete(objType, id, name) {
+        showConfirmModal(
+            'Permanent Delete',
+            `Are you sure you want to permanently delete "${name}"? This action cannot be undone and will delete all related records.`,
+            () => {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/trash/hard-delete';
+                
+                const typeInput = document.createElement('input');
+                typeInput.type = 'hidden';
+                typeInput.name = 'object_type';
+                typeInput.value = objType;
+                
+                const idInput = document.createElement('input');
+                idInput.type = 'hidden';
+                idInput.name = 'record_id';
+                idInput.value = id;
+                
+                form.appendChild(typeInput);
+                form.appendChild(idInput);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        );
+    }
+</script>
+{% endblock %}

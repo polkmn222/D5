@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}{{ object_type }} List - Salesforce{% endblock %}
+
+{% block content %}
+{% set storage_key = list_view_storage_key|default('d4_recent_messages', true) %}
+{% set current = current_view|default('message-all', true) %}
+{% set options = list_view_options|default([
+    {'value': 'message-all', 'label': 'All Messages'},
+    {'value': 'message-recent', 'label': 'Recently Viewed'}
+], true) %}
+
+<div style="padding: 1rem;">
+    <div class="sf-card sf-list-view-shell" style="padding: 0;">
+        <div class="sf-list-view-page-header">
+            <div class="sf-list-view-hero">
+                <div class="sf-list-view-page-kicker">{{ object_type }}s</div>
+                <div class="sf-list-view-hero-row">
+                    <div class="sf-list-view-icon sf-list-view-icon--message"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16a2 2 0 0 1 2 2v10l-4-2.5H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm1.6 3 6.4 4.5L18.4 8Z"/></svg></div>
+                    <div class="sf-list-view-title-wrap">
+                        <label for="message-list-view-selector" class="sf-list-view-label">List View</label>
+                        <div id="message-list-view-dropdown" class="sf-dropdown sf-list-view-selector-dropdown">
+                            <button type="button" id="message-list-view-trigger" class="sf-list-view-trigger" onclick="toggleDropdown('message-list-view-dropdown')">
+                                <span data-current-view-label class="sf-list-view-trigger-label">{{ 'All Messages' if not current else '' }}</span>
+                                <svg class="sf-list-view-trigger-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5z"></path></svg>
+                            </button>
+                            <div id="message-list-view-menu" class="sf-dropdown-menu sf-list-view-selector-menu"></div>
+                            <select id="message-list-view-selector" class="sf-list-view-selector sf-list-view-selector-native" onchange="window.applyMessageListView(this.value)">
+                                {% for option in options %}
+                                <option value="{{ option.value }}" {% if current == option.value %}selected{% endif %}>{{ option.label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <button id="message-list-pin-btn" type="button" class="sf-list-view-pin" onclick="window.toggleMessageListViewPin()">Pin</button>
+                </div>
+            </div>
+            <div class="sf-list-view-page-actions">
+            </div>
+        </div>
+
+        <div class="sf-list-view-controls" data-list-view-key="{{ storage_key }}" data-current-view="{{ current }}">
+            <div class="sf-list-view-toolbar">
+                <div class="sf-list-view-toolbar-row">
+                    <div class="sf-list-view-meta">
+                        <span class="sf-list-view-chip" id="message-current-view-chip">{{ "Recently Viewed" if current == 'message-recent' else 'All Messages' }}</span>
+                        <div class="sf-list-view-summary" id="message-list-view-summary">
+                            {{ items|length }} items - Sorted by <span id="message-current-sort-col">{{ columns[0].replace('_', ' ')|title if columns else 'Name' }}</span> - <span id="message-current-view-summary">{{ "Showing your recently opened messages" if current == 'message-recent' else "Filtered by All Messages" }}</span> - Updated just now
+                        </div>
+                    </div>
+                    <div class="sf-list-view-search-tools">
+                        <input id="message-list-search" type="text" placeholder="Search this list..." class="sf-list-view-search" oninput="window.filterMessageListView(this.value)">
+                        <button type="button" class="sf-list-view-tool-btn" onclick="window.refreshMessageListView()">Refresh</button>
+                        <div id="message-list-setup-dropdown" class="sf-dropdown sf-list-view-setup">
+                            <button type="button" class="sf-list-view-tool-btn sf-list-view-tool-btn-primary" onclick="toggleDropdown('message-list-setup-dropdown')">Setup</button>
+                            <div class="sf-dropdown-menu sf-list-view-setup-menu">
+                                <div class="sf-list-view-setup-heading">Customize Message List View</div>
+                                <p class="sf-list-view-setup-copy">This test environment stores your custom Message views in the database, so your saved layouts and pinned view persist across refreshes.</p>
+                                <div class="sf-list-view-form-grid">
+                                    <label class="sf-list-view-form-field">
+                                        <span>View name</span>
+                                        <input id="message-view-name" type="text" class="sf-list-view-form-input" placeholder="Enter a list view name">
+                                    </label>
+                                    <label class="sf-list-view-form-field">
+                                        <span>Data source</span>
+                                        <select id="message-view-source" class="sf-list-view-form-input">
+                                            <option value="all">All Messages</option>
+                                            <option value="recent">Recently Viewed</option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <div class="sf-list-view-form-grid sf-list-view-form-grid-compact">
+                                    <label class="sf-list-view-form-field">
+                                        <span>Contains text</span>
+                                        <input id="message-view-search-term" type="text" class="sf-list-view-form-input" placeholder="Save a default search term">
+                                    </label>
+                                    <label class="sf-list-view-form-field">
+                                        <span>Filter logic</span>
+                                        <select id="message-view-filter-logic" class="sf-list-view-form-input">
+                                            <option value="and">Match all conditions</option>
+                                            <option value="or">Match any condition</option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <div class="sf-list-view-setup-section">
+                                    <div class="sf-list-view-setup-section-title">Filter conditions</div>
+                                    <div class="sf-list-view-setup-hint">Combine multiple rules with AND / OR to shape the message queue you want.</div>
+                                    <div id="message-view-filter-list" class="sf-list-view-filter-list"></div>
+                                    <button type="button" class="sf-list-view-add-filter" onclick="window.addMessageListViewFilterCondition()">Add Filter</button>
+                                </div>
+                                <div class="sf-list-view-setup-section">
+                                    <div class="sf-list-view-setup-section-title">Fields to display</div>
+                                    <div class="sf-list-view-setup-hint">Drag to reorder columns, then uncheck anything you want to hide.</div>
+                                    <div id="message-view-column-list" class="sf-list-view-column-list">
+                                        {% for col in columns %}
+                                        <label class="sf-list-view-column-item" data-column-key="{{ col }}" draggable="true">
+                                            <span class="sf-list-view-column-drag">::</span>
+                                            <input type="checkbox" value="{{ col }}" data-column-key="{{ col }}" checked>
+                                            <span>{{ col.replace('_', ' ')|title }}</span>
+                                        </label>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div id="message-view-setup-meta" class="sf-list-view-setup-meta">Built-in views can be cloned into your own custom layouts.</div>
+                                <div class="sf-list-view-setup-footer">
+                                    <button type="button" class="btn" onclick="window.cloneMessageListView()">Clone</button>
+                                    <button type="button" class="btn" onclick="window.resetMessageListViewLayout()">Reset</button>
+                                    <button type="button" class="btn" id="message-delete-view-btn" onclick="window.deleteMessageListView()">Delete</button>
+                                </div>
+                                <div class="sf-list-view-setup-footer">
+                                    <button type="button" class="btn" onclick="window.saveNewMessageListView()">Save as New</button>
+                                    <button type="button" class="btn btn-primary" id="message-save-view-btn" onclick="window.saveMessageListViewLayout()">Save Changes</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="message-empty-state" class="sf-list-view-empty" style="display: none;">
+            <strong>No recently viewed messages yet.</strong>
+            <span>Open a message detail page to populate this view.</span>
+        </div>
+
+        <table class="sf-table" style="background: #fff;">
+            <thead>
+                <tr>
+                    <th style="width: 40px;"><input type="checkbox" id="selectAllCheckbox" onclick="toggleAllCheckboxes(this)"></th>
+                    {% for col in columns %}
+                    <th data-column-key="{{ col }}" data-column-label="{{ col.replace('_', ' ')|title }}" onclick="sortTable(this, {{ loop.index }})">
+                        <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                            {{ col.replace('_', ' ')|title }}
+                            <svg focusable="false" data-key="down" aria-hidden="true" viewBox="0 0 52 52" style="width: 12px; height: 12px; fill: var(--text-label);"><path d="M8.3 14h35.4c1 0 1.7 1.3.9 2.2L27.3 37.4c-.6.8-1.9.8-2.5 0L7.3 16.2c-.7-.9-.1-2.2 1-2.2z"></path></svg>
+                        </div>
+                    </th>
+                    {% endfor %}
+                    <th style="width: 120px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="message-list-body">
+                {% for item in items %}
+                <tr data-record-id="{{ item.id }}" style="background: #fff;">
+                    <td><input type="checkbox" class="row-checkbox" value="{{ item.id }}" onclick="updateDeleteButtonState()"></td>
+                    {% for col in columns %}
+                    <td data-column-key="{{ col }}">
+                        {% if loop.first %}
+                        <a href="/messages/{{ item.id }}" style="text-decoration: none;">
+                            <strong style="color: var(--nav-blue);">{{ item[col] }}</strong>
+                        </a>
+                        {% else %}
+                            {% if col in ['amount', 'price', 'base_price'] %}
+                                {{ item[col] | currency }}
+                            {% else %}
+                                {{ item[col] if item[col] is not none else '' }}
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                    <td><div style="display: flex; gap: 0.5rem;"><button type="button" onclick="window.location.href='/messages/{{ item.id }}'" class="btn" style="padding: 2px 8px;">View</button></div></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    if (typeof initializeMessageListView === "function") {
+        initializeMessageListView({
+            storageKey: {{ storage_key|tojson }},
+            currentView: {{ current|tojson }},
+            tableBodyId: "message-list-body",
+            tableSelector: ".sf-table",
+            searchInputId: "message-list-search",
+            summaryId: "message-list-view-summary",
+            currentSortId: "message-current-sort-col",
+            currentViewSummaryId: "message-current-view-summary",
+            currentViewChipId: "message-current-view-chip",
+            emptyStateId: "message-empty-state",
+            selectorId: "message-list-view-selector",
+            selectorButtonId: "message-list-view-trigger",
+            selectorMenuId: "message-list-view-menu",
+            pinButtonId: "message-list-pin-btn",
+            setupDropdownId: "message-list-setup-dropdown",
+            setupNameInputId: "message-view-name",
+            setupSourceInputId: "message-view-source",
+            setupSearchTermInputId: "message-view-search-term",
+            setupFilterLogicInputId: "message-view-filter-logic",
+            setupFilterListId: "message-view-filter-list",
+            setupColumnListId: "message-view-column-list",
+            saveViewButtonId: "message-save-view-btn",
+            deleteViewButtonId: "message-delete-view-btn",
+            setupMetaId: "message-view-setup-meta",
+            savedViews: {{ saved_views|default([], true)|tojson }},
+            pinnedViewId: {{ pinned_view_id|default('', true)|tojson }},
+            allLabel: "All Messages",
+            recentLabel: "Recently Viewed",
+            initialRowLimit: 50,
+        });
+    }
+});
+</script>
+
+<style>
+#message-list-body td,
+#message-list-body tr,
+.sf-table thead tr,
+.sf-table thead th {
+    background: #fff;
+}
+</style>
+{% endblock %}

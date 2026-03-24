@@ -1,0 +1,212 @@
+/* Salesforce Card Style */
+.sf-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.sf-card-header {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* Table */
+.sf-table { width: 100%; border-collapse: collapse; }
+.sf-table th { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--border); color: var(--text-label); font-size: 0.75rem; text-transform: uppercase; }
+.sf-table td { padding: 0.75rem 0.5rem; border-bottom: 1px solid var(--border); font-size: 0.8125rem; }
+
+/* Badge */
+.badge { padding: 0.125rem 0.5rem; border-radius: 1rem; font-size: 0.7rem; font-weight: 700; }
+.badge-new { background: #e0f0fd; color: #0070d2; }
+
+/* Detail View Components */
+.detail-header {
+    background: white;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.detail-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    color: white;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.detail-icon svg {
+    width: 1.35rem;
+    height: 1.35rem;
+    fill: currentColor;
+}
+
+.sf-pencil-icon {
+    cursor: pointer;
+}
+
+.detail-icon--lead {
+    background: linear-gradient(135deg, #0b5cab 0%, #1b96ff 100%);
+}
+
+.detail-icon--contact {
+    background: linear-gradient(135deg, #0f8b8d 0%, #20b2aa 100%);
+}
+
+.detail-icon--opportunity {
+    background: linear-gradient(135deg, #8f5b00 0%, #f59e0b 100%);
+}
+
+.detail-icon--product {
+    background: linear-gradient(135deg, #5b21b6 0%, #8b5cf6 100%);
+}
+
+.detail-icon--asset {
+    background: linear-gradient(135deg, #047857 0%, #10b981 100%);
+}
+
+.detail-icon--brand {
+    background: linear-gradient(135deg, #b45309 0%, #f97316 100%);
+}
+
+.detail-icon--model {
+    background: linear-gradient(135deg, #c2410c 0%, #fb7185 100%);
+}
+
+.detail-icon--message {
+    background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+}
+
+.detail-icon--template {
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+}
+
+/* Field Grid & Items */
+.field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 4rem;
+}
+
+.sf-field-item {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: stretch;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border);
+    min-height: 4rem;
+}
+
+.sf-field-label {
+    font-size: 0.75rem;
+    color: var(--text-label);
+    margin-bottom: 0.25rem;
+}
+
+.sf-field-value {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.sf-description-large {
+    grid-column: span 2;
+    margin-top: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+/* Read-only audit metadata within detail card */
+.sf-detail-meta-grid {
+    margin-top: 1rem;
+}
+
+.sf-related-card {
+    margin: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.9rem;
+    overflow: hidden;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+}
+
+.sf-related-card-header {
+    background: #f8fbff;
+    padding: 0.8rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.sf-related-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.sf-related-icon {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.7rem;
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
+}
+
+.sf-related-icon svg {
+    width: 1rem;
+    height: 1rem;
+    fill: currentColor;
+}
+
+.sf-related-icon--opportunity { background: linear-gradient(135deg, #8f5b00 0%, #f59e0b 100%); }
+.sf-related-icon--message { background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%); }
+.sf-related-icon--asset { background: linear-gradient(135deg, #047857 0%, #10b981 100%); }
+.sf-related-icon--contact { background: linear-gradient(135deg, #0f8b8d 0%, #20b2aa 100%); }
+.sf-related-icon--product { background: linear-gradient(135deg, #5b21b6 0%, #8b5cf6 100%); }
+.sf-related-icon--model { background: linear-gradient(135deg, #c2410c 0%, #fb7185 100%); }
+.sf-related-icon--brand { background: linear-gradient(135deg, #b45309 0%, #f97316 100%); }
+
+.sf-field-item--readonly-meta {
+    min-height: 4rem;
+}
+
+.sf-system-meta-link {
+    color: var(--nav-blue);
+    font-weight: 600;
+}
+
+/* Tabs within Detail View */
+.detail-tabs {
+    background: white;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    padding: 0 1.5rem;
+}
+
+.detail-tab {
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    color: var(--text-label);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+}
+
+.detail-tab.active {
+    border-bottom-color: var(--nav-blue);
+    font-weight: 700;
+    color: var(--text);
+}

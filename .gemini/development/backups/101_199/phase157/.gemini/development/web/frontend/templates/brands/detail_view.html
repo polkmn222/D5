@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}{{ record_name }} | {{ object_type }} - Salesforce{% endblock %}
+
+{% block content %}
+<div class="detail-header">
+    <div style="display: flex; gap: 1rem; align-items: center;">
+        <div class="detail-icon detail-icon--brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h8a4 4 0 0 1 0 8H6Zm0 10h10a4 4 0 0 1 0 8H6Zm2-8v4h6a2 2 0 0 0 0-4Zm0 10v4h8a2 2 0 0 0 0-4Z"/></svg></div>
+        <div>
+            <nav style="font-size: 0.75rem; color: var(--text-label);">{{ object_type }}</nav>
+            <h1 style="font-size: 1.25rem; font-weight: 700;">{{ record_name }}</h1>
+        </div>
+    </div>
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <button type="button" class="btn" onclick="openModal('/{{ plural_type }}/new-modal?id={{ record_id }}')">Edit</button>
+        <button type="button" class="btn" style="color: var(--error);" onclick="confirmDelete('{{object_type}}', '{{record_id}}', '{{record_name}}', '{{plural_type}}')">Delete</button>
+    </div>
+</div>
+
+{% if path %}
+<div class="sf-path-container" style="display: flex; align-items: center; background: #f3f3f3; padding: 0.5rem 1rem; gap: 0.5rem; border-bottom: 1px solid var(--border);">
+    <div class="sf-path" style="flex-grow: 1; width: 100%;">
+        {% for step in path %}
+        <div class="sf-path-item {% if step.active %}active{% elif step.completed %}completed{% endif %}" 
+             data-stage="{{ step.label }}"
+             onclick="selectPathStage(this)">
+            {{ step.label }}
+        </div>
+        {% endfor %}
+    </div>
+    <button id="mark-complete-btn" class="btn btn-primary" style="border-radius: 20px;" 
+            onclick="commitStageChange('{{plural_type}}', '{{record_id}}')">
+        Mark Status as Complete
+    </button>
+</div>
+{% endif %}
+
+<div class="detail-tabs" style="margin-top: 0.5rem;">
+    <div class="detail-tab active" onclick="switchTab('details')">Details</div>
+    <div class="detail-tab" onclick="switchTab('related')">Related</div>
+</div>
+
+<div id="tab-details" class="sf-card" style="margin: 1.5rem; display: block; padding: 1.5rem 2.5rem;">
+    <div class="field-grid">
+        <div class="sf-field-item">
+            <div style="flex-grow: 1; width: 100%;">
+                <div class="sf-field-label">ID</div>
+                <div class="sf-field-value" style="font-family: monospace; color: var(--text-label);">{{ record_id }}</div>
+            </div>
+        </div>
+        {% for field, value in details.items() %}
+        {% if field != 'Description' and 'Date' not in field and 'created' not in field.lower() and 'modified' not in field.lower() and 'Hidden' not in field and 'ID' not in field|upper %}
+        <div class="sf-field-item">
+            <div style="flex-grow: 1; width: 100%;">
+                <div class="sf-field-label">{{ field.replace('_', ' ') }}</div>
+                
+                {% if field in ["Contact", "Template", "Message", "Brand", "Model", "Product", "Asset", "Account", "Parent"] %}
+                <div id="value-{{ field }}" class="sf-editable-field" style="width: 100%;">
+                    <span id="text-{{ field }}">
+                        {% if field == 'Account' %}
+                            <a href="/accounts/{{ details.get('Account_Hidden_Ref') or details.get('Account_Id') }}" class="sf-link" style="color: var(--nav-blue); text-decoration: none;">{{ value | format_value }}</a>
+                        {% elif field == 'Contact' %}
+                            <a href="/contacts/{{ details.get('Contact_Hidden_Ref') or details.get('Contact_Id') }}" class="sf-link" style="color: var(--nav-blue); text-decoration: none;">{{ value | format_value }}</a>
+                        {% elif field == 'Template' %}
+                            <a href="/message_templates/{{ details.get('Template_Hidden_Ref') or details.get('Template_Id') }}" class="sf-link" style="color: var(--nav-blue); text-decoration: none;">{{ value | format_value }}</a>
+                        {% elif field == 'Message' %}
+                            <a href="/messages/{{ details.get('Message_Hidden_Ref') or details.get('Message_Id') }}" class="sf-link" style="color: var(--nav-blue); text-decoration: none;">{{ value | format_value }}</a>
+                        {% elif field == 'Brand' %}
+                            <a href="/vehicle_specifications/{{ details.get('Brand_Hidden_Ref') or details.get('Brand_Id') }}" class="sf-link" style="color: var(--nav-blue); text-decoration: none;">{{ value | format_value }}</a>
+                        {% elif field == 'Model' %}
+                            <a href="/models/{{ details.get('Model_Hidden_Ref') or details.get('Model_Id') }}" class="sf-link" style="color: var(--nav-blue); text-decoration: none;">{{ value | format_value }}</a>
+                        {% elif field == 'Product' %}
+                            <a href="/products/{{ details.get('Product_Hidden_Ref') or details.get('Product_Id') }}" class="sf-link" style="color: var(--nav-blue); text-decoration: none;">{{ value | format_value }}</a>
+                        {% elif field == 'Asset' %}
+                            <a href="/assets/{{ details.get('Asset_Hidden_Ref') or details.get('Asset_Id') }}" class="sf-link" style="color: var(--nav-blue); text-decoration: none;">{{ value | format_value }}</a>
+                        {% elif field == 'Parent' %}
+                            <a href="/vehicle_specifications/{{ details.get('Parent_Hidden_Ref') or details.get('Parent_Id') }}" class="sf-link" style="color: var(--nav-blue); text-decoration: none;">{{ value | format_value }}</a>
+                        {% else %}
+                            {{ value | format_value }}
+                        {% endif %}
+                    </span>
+                    <span class="sf-pencil-icon" onclick="toggleLookupEdit('{{ field }}', '{{ 'MessageSend' if field == 'Message' else ('VehicleSpecification' if field in ['Brand', 'Parent'] else field) }}', '{{ field }}', '{{ details.get(field + '_Hidden_Ref', details.get(field + '_Id', '')) }}', '{{ value | format_value }}'); event.stopPropagation();" style="margin-left: auto; padding-left: 1rem;">✏️</span>
+                </div>
+                <div id="edit-{{ field }}" style="display: none;" 
+                     data-label="{{ field if details[field+'_Hidden_Ref'] is not defined else field+'_Hidden_Ref' }}"
+                     data-lookup-type="{{ 'MessageSend' if field == 'Message' else ('VehicleSpecification' if field in ['Brand', 'Parent'] else field) }}"
+                     data-initial-id="{{ details.get(field + '_Hidden_Ref', details.get(field + '_Id', '')) }}"
+                     data-initial-name="{{ value | format_value }}"></div>
+                
+                {% else %}
+                <!-- Display Mode -->
+                <div id="value-{{ field }}" class="sf-editable-field" onclick="toggleInlineEdit('{{ field }}', '{{ plural_type }}', '{{ record_id }}', '{{ field }}')" style="width: 100%;">
+                    <span id="text-{{ field }}">
+                        {% if field in ['Amount', 'Price'] and value is not none %}
+                            ₩ {{ "{:,}".format(value|int) }}
+                        {% else %}
+                            {{ value | format_value | safe if value | format_value != '' else '&nbsp;'|safe }}
+                        {% endif %}
+                    </span>
+                    <span class="sf-pencil-icon" style="margin-left: auto; padding-left: 1rem;">✏️</span>
+                </div>
+
+                <!-- Edit Mode -->
+                <div id="edit-{{ field }}" style="display: none;" data-label="{{ field }}">
+                    {% if field == 'Temperature' %}
+                    <select id="input-{{ field }}" class="sf-inline-input">
+                        <option value="Hot" {% if value == 'Hot' %}selected{% endif %}>Hot</option>
+                        <option value="Warm" {% if value == 'Warm' %}selected{% endif %}>Warm</option>
+                        <option value="Cold" {% if value == 'Cold' %}selected{% endif %}>Cold</option>
+                    </select>
+                    {% else %}
+                    <input type="text" id="input-{{ field }}" class="sf-inline-input" value="{{ value | format_value }}">
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- Full-width Description -->
+    <div class="sf-description-large">
+        <div class="sf-field-label">Description</div>
+        <div id="value-description" class="sf-editable-field" onclick="toggleInlineEdit('description', '{{ plural_type }}', '{{ record_id }}', 'Description')" style="width: 100%;">
+            <span id="text-description" style="line-height: 1.5; min-height: 1.5rem; display: block;">{{ details.get('Description') | format_value | safe if details.get('Description') | format_value != '' else '&nbsp;'|safe }}</span>
+            <span class="sf-pencil-icon" style="margin-left: auto; padding-left: 1rem;">✏️</span>
+        </div>
+        <div id="edit-description" style="display: none;" data-label="Description">
+            <textarea id="input-description" class="sf-inline-input" style="height: 100px;">{{ details.get('Description') | format_value }}</textarea>
+        </div>
+    </div>
+    {% include "shared/detail_system_info.html" %}
+</div>
+
+<div id="tab-related" class="sf-card" style="margin: 1.5rem; display: none;">
+    <div style="padding: 1rem 1rem 0.25rem; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);">
+        <div style="font-size: 1rem; font-weight: 700; color: #16325c;">Related</div>
+        <div style="font-size: 0.8rem; color: var(--text-label); margin-top: 0.2rem;">Connected records for this brand, similar to Salesforce related lists.</div>
+    </div>
+    {% if related_lists %}
+        {% for list in related_lists %}
+        <div class="sf-related-card">
+            <div class="sf-related-card-header">
+                <div class="sf-related-title-wrap">
+                    <div class="sf-related-icon sf-related-icon--{{ list.icon }}">
+                        {% if list.icon == 'model' %}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17h16v2H4Zm2-3 2.5-6h7L18 14h-2.2l-1-2.4H9.2L8.2 14Zm4-4.2h4l-1.2-2.8h-1.6Z"/></svg>{% endif %}
+                        {% if list.icon == 'product' %}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 9 4.5v11L12 22 3 17.5v-11Zm0 2.2L6 7l6 2.8L18 7ZM5 8.6v7.7l6 3v-7.7Zm14 0-6 3v7.7l6-3Z"/></svg>{% endif %}
+                        {% if list.icon == 'asset' %}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 16h14l1.5 3H3.5ZM7 8h10l2 6H5Zm2-4h6l1 2H8Z"/></svg>{% endif %}
+                        {% if list.icon == 'opportunity' %}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18h16v2H4zm2-3 4.2-5.2 3.1 2.7L18 7l2 1.6-6 7.3-3.2-2.8L8 17Z"/></svg>{% endif %}
+                    </div>
+                    <div>
+                        <div style="font-weight: 700; color: #16325c;">{{ list.title }}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-label);">{{ list.total_count }} records</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    {% if list.new_url %}<button class="btn btn-primary" onclick="openModal('{{ list.new_url }}')">New</button>{% endif %}
+                    {% if list.view_all_url %}<a class="btn" style="text-decoration: none; color: var(--text);" href="{{ list.view_all_url }}">View All</a>{% endif %}
+                </div>
+            </div>
+            <table class="sf-table">
+                <thead>
+                    <tr>
+                        {% for col in list.columns %}
+                        <th>{{ col|upper }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in list['items'] %}
+                    <tr>
+                        {% for col in list.columns %}
+                        <td>
+                            {% if loop.first and item.get('_href') %}
+                            <a href="{{ item.get('_href') }}" class="sf-link" style="font-weight: 600; color: var(--nav-blue); text-decoration: none;">{{ item[col.lower()] }}</a>
+                            {% else %}
+                            {% set cell_value = item[col.lower()] %}
+                            {% if col.lower() in ['amount', 'price', 'base_price'] and cell_value not in [None, ''] %}
+                            {{ cell_value | currency }}
+                            {% else %}
+                            {{ cell_value }}
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p style="color: var(--text-label); font-size: 0.875rem; padding: 1rem;">No related records found.</p>
+    {% endif %}
+</div>
+
+<script>
+    function switchTab(tabName) {
+        document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.sf-card').forEach(c => {
+            if (c.id.startsWith('tab-')) c.style.display = 'none';
+        });
+        
+        event.currentTarget.classList.add('active');
+        document.getElementById('tab-' + tabName).style.display = 'block';
+    }
+
+    let selectedStageLabel = null;
+
+    function selectPathStage(el) {
+        // Clear previous selection visually within path (not committed)
+        document.querySelectorAll('.sf-path-item').forEach(item => {
+            if (!item.classList.contains('active') && !item.classList.contains('completed')) {
+                item.style.backgroundColor = 'white';
+                item.style.color = 'var(--text-label)';
+            }
+        });
+        
+        // Highlight selection
+        if (!el.classList.contains('active') && !el.classList.contains('completed')) {
+            el.style.backgroundColor = '#eef4ff';
+            el.style.color = 'var(--nav-blue)';
+        }
+        
+        selectedStageLabel = el.getAttribute('data-stage');
+        console.log("[DEBUG] Stage selected (not committed):", selectedStageLabel);
+    }
+
+    async function commitStageChange(type, id) {
+        if (!selectedStageLabel) {
+            showToast("Please select a stage first", "error");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('stage', selectedStageLabel);
+        
+        console.log("[DEBUG] Committing stage change to:", selectedStageLabel);
+        const response = await fetch(`/${type}/${id}/stage`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            showToast("Stage updated successfully");
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showToast("Failed to update stage", "error");
+        }
+    }
+
+    async function toggleFollow(type, id, currentState) {
+        const newState = !currentState;
+        const formData = new FormData();
+        formData.append('enabled', newState);
+        
+        const response = await fetch(`/${type}/${id}/toggle-follow`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            showToast(newState ? "Following record" : "Unfollowed record");
+            setTimeout(() => window.location.reload(), 1000);
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        if (typeof rememberRecentlyViewedRecord === "function") {
+            rememberRecentlyViewedRecord("d4_recent_brands", {
+                id: {{ record_id|tojson }},
+                name: {{ record_name|tojson }},
+                url: {{ ("/vehicle_specifications/" ~ record_id)|tojson }}
+            });
+        }
+    });
+</script>
+{% endblock %}

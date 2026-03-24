@@ -1,0 +1,22 @@
+<div class="sf-modal-header">
+    <h2 style="font-size: 1.1rem; font-weight: 700;">Import {{ object_type }}s</h2>
+    <span style="cursor: pointer;" onclick="closeModal()">✕</span>
+</div>
+<form action="/import" method="POST" enctype="multipart/form-data">
+    <div class="sf-modal-body">
+        <input type="hidden" name="object_type" value="{{ object_type }}">
+        <div style="border: 2px dashed var(--border); padding: 3rem 2rem; text-align: center; border-radius: var(--radius); background: #fafaf9;">
+            <p style="margin-bottom: 1rem; font-size: 0.875rem;">Upload a CSV file to import records.</p>
+            <input type="file" name="file" accept=".csv" required style="font-size: 0.8125rem;">
+        </div>
+        <div style="margin-top: 1rem; font-size: 0.75rem; color: var(--text-label);">
+            <p><strong>Note:</strong> Ensure your CSV headers match the object fields.</p>
+        </div>
+    </div>
+    <div class="sf-modal-footer">
+        <button type="button" class="btn" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Verify & Import</button>
+    </div>
+</form>
+
+# END FILE

@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}{{ object_type }} List - Salesforce{% endblock %}
+
+{% block content %}
+{% set lead_list_storage_key = list_view_storage_key|default('d4_recent_leads', true) %}
+{% set lead_current_view = current_view|default('all', true) %}
+{% set lead_list_options = list_view_options|default([
+    {'value': 'all', 'label': 'All'},
+    {'value': 'recent', 'label': 'Recently Viewed'}
+], true) %}
+{% set p_type = plural_type if plural_type else (object_type|lower + 's') %}
+
+<div style="padding: 1rem;">
+    <div class="sf-card sf-list-view-shell" style="padding: 0;">
+        <div class="sf-list-view-page-header">
+            <div class="sf-list-view-page-title">
+                <nav class="sf-list-view-page-kicker">{{ object_type }}s</nav>
+                <h1 class="sf-list-view-page-heading">{{ plural_type|title if plural_type else (object_type + 's') }}</h1>
+            </div>
+            <div class="sf-list-view-page-actions">
+                {% if object_type == 'Account' %}
+                <button onclick="openModal('/accounts/record-types')" class="btn btn-primary">New</button>
+                {% elif object_type == 'VehicleSpecification' %}
+                <button onclick="openModal('/vehicle_specifications/record-types')" class="btn btn-primary">New</button>
+                {% else %}
+                <button onclick="openModal('/{{ p_type }}/new-modal')" class="btn btn-primary">New</button>
+                {% endif %}
+                <button id="bulk-delete-btn" class="btn btn-primary" style="background-color: var(--error); border-color: var(--error); display: none;" onclick="confirmBulkDelete('{{object_type}}')">Delete</button>
+            </div>
+        </div>
+        <div class="sf-list-view-controls" data-list-view-key="{{ lead_list_storage_key }}" data-current-view="{{ lead_current_view }}" data-all-label="All Leads" data-recent-label="Recently Viewed">
+            <div class="sf-list-view-header">
+                <div class="sf-list-view-identity">
+                    <div class="sf-list-view-icon">LQ</div>
+                    <div class="sf-list-view-selector-wrap">
+                        <label for="lead-list-view-selector" class="sf-list-view-label">List View</label>
+                        <select id="lead-list-view-selector" class="sf-list-view-selector" onchange="window.applyLeadListView(this.value)">
+                            {% for option in lead_list_options %}
+                            <option value="{{ option.value }}" {% if lead_current_view == option.value %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="sf-list-view-actions">
+                    <button type="button" class="btn" onclick="window.refreshLeadListView()">Refresh</button>
+                    <div id="lead-list-setup-dropdown" class="sf-dropdown sf-list-view-setup">
+                        <button type="button" class="btn" onclick="toggleDropdown('lead-list-setup-dropdown')">Setup</button>
+                        <div class="sf-dropdown-menu sf-list-view-setup-menu">
+                            <div class="sf-list-view-setup-heading">List View Setup</div>
+                            <p class="sf-list-view-setup-copy">Choose which columns appear in this Lead list. Your selections are saved in this browser.</p>
+                            <div class="sf-list-view-setup-options">
+                                {% for col in columns %}
+                                <label class="sf-list-view-setup-option">
+                                    <input type="checkbox" value="{{ col }}" data-column-key="{{ col }}" checked>
+                                    <span>{{ col.replace('_', ' ')|title }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                            <div class="sf-list-view-setup-footer">
+                                <button type="button" class="btn" onclick="window.resetLeadListViewLayout()">Reset</button>
+                                <button type="button" class="btn btn-primary" onclick="window.saveLeadListViewLayout()">Apply</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="sf-list-view-toolbar">
+                <div class="sf-list-view-chip-row">
+                    <span class="sf-list-view-chip" id="lead-current-view-chip">{{ "Recently Viewed" if lead_current_view == "recent" else "All Leads" }}</span>
+                </div>
+                <div class="sf-list-view-search-row">
+                    <div style="font-size: 0.75rem; color: var(--text-label);" id="list-view-summary">
+                        {{ items|length }} items • Sorted by <span id="current-sort-col">{{ columns[0].replace('_', ' ')|title if columns else 'Name' }}</span> • <span id="current-view-summary">{{ "Showing your recently opened leads" if lead_current_view == "recent" else "Filtered by All Leads" }}</span> • Updated just now
+                    </div>
+                    <input id="lead-list-search" type="text" placeholder="Search this list..." class="btn sf-list-view-search" oninput="window.filterLeadListView(this.value)">
+                </div>
+            </div>
+        </div>
+
+        <div id="lead-empty-state" class="sf-list-view-empty" style="display: none;">
+            <strong>No recently viewed leads yet.</strong>
+            <span>Open a lead detail page to populate this view.</span>
+        </div>
+
+        <table class="sf-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;"><input type="checkbox" id="selectAllCheckbox" onclick="toggleAllCheckboxes(this)"></th>
+                    {% for col in columns %}
+                    <th data-column-key="{{ col }}" data-column-label="{{ col.replace('_', ' ')|title }}" onclick="sortTable(this, {{ loop.index }})">
+                        <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                            {{ col.replace('_', ' ')|title }}
+                            <svg focusable="false" data-key="down" aria-hidden="true" viewBox="0 0 52 52" style="width: 12px; height: 12px; fill: var(--text-label);"><path d="M8.3 14h35.4c1 0 1.7 1.3.9 2.2L27.3 37.4c-.6.8-1.9.8-2.5 0L7.3 16.2c-.7-.9-.1-2.2 1-2.2z"></path></svg>
+                        </div>
+                    </th>
+                    {% endfor %}
+                    <th style="width: 100px;">ACTIONS</th>
+                </tr>
+            </thead>
+            <tbody id="lead-list-body">
+                {% for item in items %}
+                <tr data-record-id="{{ item.id }}">
+                    <td><input type="checkbox" class="row-checkbox" value="{{ item.id }}" onclick="updateDeleteButtonState()"></td>
+                    {% for col in columns %}
+                    <td data-column-key="{{ col }}">
+                        {% if loop.first %}
+                        <a href="/{{ p_type }}/{{ item.id }}" style="text-decoration: none;">
+                            <strong style="color: var(--nav-blue);">{{ item[col] }}</strong>
+                        </a>
+                        {% else %}
+                            {% if col == 'amount' or col == 'price' or col == 'base_price' %}
+                                {{ item[col] | currency }}
+                            {% else %}
+                                {{ item[col] if item[col] is not none else '' }}
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                    <td>
+                        <div style="display: flex; gap: 0.5rem;">
+                            {% if object_type == 'Lead' %}
+                            <button onclick="openModal('/leads/{{ item.id }}/convert-modal')" class="btn btn-primary" style="padding: 2px 8px; background: var(--success); border-color: var(--success);">Convert</button>
+                            {% endif %}
+                            <button onclick="openModal('{{ item.edit_url }}')" class="btn" style="padding: 2px 8px;">Edit</button>
+                            <button type="button" class="btn" style="padding: 2px 8px; color: var(--error);" onclick="confirmDelete('{{object_type}}', '{{item.id}}', '{{item.name}}', '{{plural_type}}')">Del</button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        if (typeof initializeLeadListView === "function") {
+            initializeLeadListView({
+                storageKey: {{ lead_list_storage_key|tojson }},
+                currentView: {{ lead_current_view|tojson }},
+                tableBodyId: "lead-list-body",
+                tableSelector: ".sf-table",
+                searchInputId: "lead-list-search",
+                summaryId: "list-view-summary",
+                currentSortId: "current-sort-col",
+                currentViewSummaryId: "current-view-summary",
+                currentViewChipId: "lead-current-view-chip",
+                emptyStateId: "lead-empty-state",
+                selectorId: "lead-list-view-selector",
+                setupDropdownId: "lead-list-setup-dropdown",
+                recentLabel: "Recently Viewed",
+                allLabel: "All Leads",
+            });
+        }
+    });
+</script>
+{% endblock %}
+
+# END FILE

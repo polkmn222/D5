@@ -1,0 +1,24 @@
+<div class="sf-system-info">
+    <div class="sf-system-info-item">
+        <div class="sf-field-label">Created Date</div>
+        <div class="sf-system-meta-value">{{ created_at | datetime_format if created_at else "" }}</div>
+    </div>
+    <div class="sf-system-info-item">
+        <div class="sf-field-label">Last Modified Date</div>
+        <div class="sf-system-meta-value">{{ updated_at | datetime_format if updated_at else "" }}</div>
+    </div>
+    <div class="sf-system-info-item">
+        <div class="sf-field-label">Created By</div>
+        <div class="sf-system-user">
+            <img src="{{ created_by_avatar_url | default('https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y', true) }}" class="sf-user-avatar">
+            <span class="sf-system-user-name">{{ created_by_name | default('admin', true) }}</span>
+        </div>
+    </div>
+    <div class="sf-system-info-item">
+        <div class="sf-field-label">Last Modified By</div>
+        <div class="sf-system-user">
+            <img src="{{ updated_by_avatar_url | default('https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y', true) }}" class="sf-user-avatar">
+            <span class="sf-system-user-name">{{ updated_by_name | default('admin', true) }}</span>
+        </div>
+    </div>
+</div>

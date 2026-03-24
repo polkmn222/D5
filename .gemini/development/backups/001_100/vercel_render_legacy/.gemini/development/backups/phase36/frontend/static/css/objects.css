@@ -1,0 +1,130 @@
+/* Salesforce Card Style */
+.sf-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.sf-card-header {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* Table */
+.sf-table { width: 100%; border-collapse: collapse; }
+.sf-table th { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--border); color: var(--text-label); font-size: 0.75rem; text-transform: uppercase; }
+.sf-table td { padding: 0.75rem 0.5rem; border-bottom: 1px solid var(--border); font-size: 0.8125rem; }
+
+/* Badge */
+.badge { padding: 0.125rem 0.5rem; border-radius: 1rem; font-size: 0.7rem; font-weight: 700; }
+.badge-new { background: #e0f0fd; color: #0070d2; }
+
+/* Detail View Components */
+.detail-header {
+    background: white;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.detail-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    color: white;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+/* Field Grid & Items */
+.field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 4rem;
+}
+
+.sf-field-item {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: stretch;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border);
+    min-height: 4rem;
+}
+
+.sf-field-label {
+    font-size: 0.75rem;
+    color: var(--text-label);
+    margin-bottom: 0.25rem;
+}
+
+.sf-field-value {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.sf-description-large {
+    grid-column: span 2;
+    margin-top: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+/* System Information Section */
+.sf-system-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-top: 2rem;
+    padding: 1rem 1.5rem;
+    border-top: 2px solid var(--border);
+    background: #fdfdfd;
+}
+
+.sf-system-user {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+}
+
+.sf-user-avatar {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background: #ccc;
+    object-fit: cover;
+}
+
+/* Tabs within Detail View */
+.detail-tabs {
+    background: white;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    padding: 0 1.5rem;
+}
+
+.detail-tab {
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    color: var(--text-label);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+}
+
+.detail-tab.active {
+    border-bottom-color: var(--nav-blue);
+    font-weight: 700;
+    color: var(--text);
+}

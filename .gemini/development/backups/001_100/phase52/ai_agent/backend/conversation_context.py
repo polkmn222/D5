@@ -1,0 +1,44 @@
+from typing import Any, Dict, Optional
+
+
+class ConversationContextStore:
+    _store: Dict[str, Dict[str, Any]] = {}
+
+    @classmethod
+    def get_context(cls, conversation_id: Optional[str]) -> Dict[str, Any]:
+        if not conversation_id:
+            return {}
+        return cls._store.setdefault(conversation_id, {})
+
+    @classmethod
+    def remember_created(cls, conversation_id: Optional[str], object_type: str, record_id: Optional[str]) -> None:
+        if not conversation_id or not object_type or not record_id:
+            return
+        context = cls._store.setdefault(conversation_id, {})
+        context["last_created"] = {"object_type": object_type, "record_id": record_id}
+        context["last_object"] = object_type
+        context["last_intent"] = "CREATE"
+
+    @classmethod
+    def remember_object(
+        cls,
+        conversation_id: Optional[str],
+        object_type: Optional[str],
+        intent: Optional[str],
+        record_id: Optional[str] = None,
+    ) -> None:
+        if not conversation_id or not object_type:
+            return
+        context = cls._store.setdefault(conversation_id, {})
+        context["last_object"] = object_type
+        if intent:
+            context["last_intent"] = intent
+        if intent == "QUERY":
+            context["last_query_object"] = object_type
+        if record_id:
+            context["last_record_id"] = record_id
+
+    @classmethod
+    def clear(cls, conversation_id: Optional[str]) -> None:
+        if conversation_id and conversation_id in cls._store:
+            del cls._store[conversation_id]

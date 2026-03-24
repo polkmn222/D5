@@ -1,0 +1,46 @@
+<div class="sf-modal-header">
+    <h2 style="font-size: 1.1rem; font-weight: 700;">New Vehicle Specification</h2>
+    <span style="cursor: pointer;" onclick="closeModal()">✕</span>
+</div>
+<div class="sf-modal-body">
+    <p style="margin-bottom: 1.5rem; color: var(--text-label); font-size: 0.875rem;">Select a record type</p>
+    
+    <label class="record-type-option" onclick="selectType('Brand')">
+        <div style="display: flex; gap: 1rem; align-items: start;">
+            <input type="radio" name="spec_type" value="Brand" checked>
+            <div>
+                <div style="font-weight: 700; font-size: 0.875rem;">Brand</div>
+                <div style="font-size: 0.75rem; color: var(--text-label);">Represents a vehicle manufacturer (e.g., Solaris, Zenith).</div>
+            </div>
+        </div>
+    </label>
+
+    <label class="record-type-option" onclick="selectType('Model')">
+        <div style="display: flex; gap: 1rem; align-items: start;">
+            <input type="radio" name="spec_type" value="Model">
+            <div>
+                <div style="font-weight: 700; font-size: 0.875rem;">Model</div>
+                <div style="font-size: 0.75rem; color: var(--text-label);">Represents a specific vehicle model linked to a brand.</div>
+            </div>
+        </div>
+    </label>
+</div>
+<div class="sf-modal-footer">
+    <button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="proceedToForm()">Next</button>
+</div>
+
+<script>
+    let selectedType = 'Brand';
+    function selectType(type) {
+        selectedType = type;
+        document.querySelectorAll('input[name="spec_type"]').forEach(input => {
+            if (input.value === type) input.checked = true;
+        });
+    }
+    function proceedToForm() {
+        openModal('/vehicle_specifications/new?type=' + selectedType);
+    }
+</script>
+
+# END FILE

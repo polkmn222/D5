@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Search Results | GK{% endblock %}
+
+{% block content %}
+<style>
+    .type-pill {
+        padding: 0.25rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: white;
+    }
+    .type-lead { background: #49a5e1; }
+    .type-account { background: #7f8de1; }
+    .type-contact { background: #a094ed; }
+    .type-opportunity { background: #fcb95b; }
+    .type-model { background: #3ba755; }
+    .type-brand { background: #e96d6d; }
+    .type-product { background: #9d53f2; }
+    .type-template { background: #2e8b57; }
+    .type-default { background: #666; }
+</style>
+
+<div style="padding: 2rem; max-width: 1200px; margin: 0 auto;">
+    <div style="margin-bottom: 2rem;">
+        <nav style="font-size: 0.75rem; color: var(--text-label); margin-bottom: 0.5rem;">Global Search</nav>
+        <h1 style="font-size: 1.5rem; font-weight: 700;">Results for "{{ query }}"</h1>
+        <p style="color: var(--text-label); font-size: 0.875rem;">{{ results|length }} records found</p>
+    </div>
+
+    {% if results %}
+    {% set type_colors = {'Lead': '#49a5e1', 'Account': '#7f8de1', 'Contact': '#a094ed', 'Opportunity': '#fcb95b', 'Model': '#3ba755', 'Brand': '#e96d6d', 'Product': '#9d53f2', 'Template': '#2e8b57'} %}
+    <div class="sf-card" style="padding: 0; overflow: hidden;">
+        <table class="sf-table">
+            <thead>
+                <tr>
+                    <th style="width: 100px;">TYPE</th>
+                    <th>NAME / IDENTIFIER</th>
+                    <th>ADDITIONAL INFO</th>
+                    <th style="width: 100px;">ACTION</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in results %}
+                <tr>
+                    <td>
+                        <nav class="type-pill type-{{ item.type|lower }}">
+                            {{ item.type|upper }}
+                        </nav>
+                    </td>
+                    <td style="font-weight: 600;">{{ item.name }}</td>
+                    <td style="color: var(--text-label); font-size: 0.875rem;">{{ item.info if item.info else '-' }}</td>
+                    <td>
+                        <a href="{{ item.url }}" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">View</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 4rem; background: white; border: 1px solid var(--border); border-radius: 8px;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
+        <h3 style="font-size: 1.25rem; font-weight: 600; color: #181818;">No records found</h3>
+        <p style="color: var(--text-label);">Try searching for a different name or email.</p>
+        <button class="btn btn-primary" style="margin-top: 1.5rem;" onclick="window.location.href='/'">Go back Home</button>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

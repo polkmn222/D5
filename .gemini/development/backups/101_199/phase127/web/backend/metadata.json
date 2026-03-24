@@ -1,0 +1,182 @@
+{
+  "project": "AI Ready CRM (D4)",
+  "database": "postgresql-neon",
+  "tables": {
+    "leads": {
+      "description": "Potential customers or sales leads in the automotive CRM.",
+      "columns": {
+        "id": "Unique identifier (18 chars).",
+        "first_name": "Lead's first name.",
+        "last_name": "Lead's last name.",
+        "gender": "Lead's gender.",
+        "email": "Lead's email address.",
+        "phone": "Lead's phone number.",
+        "status": "Current status (New, Follow Up, Qualified, Lost).",
+        "is_converted": "Boolean indicating if lead was converted to a contact.",
+        "converted_contact": "Lookup to contacts table.",
+        "converted_opportunity": "Lookup to opportunities table.",
+        "brand": "Lookup to vehicle_specifications (Brand).",
+        "model": "Lookup to models table.",
+        "product": "Lookup to products table.",
+        "description": "Additional notes about the lead.",
+        "is_followed": "Boolean indicating if the user is following this lead.",
+        "created_at": "Timestamp when record was created.",
+        "updated_at": "Timestamp when record was last updated.",
+        "deleted_at": "Soft delete timestamp."
+      }
+    },
+    "contacts": {
+      "description": "Individual customers or converted leads.",
+      "columns": {
+        "id": "Unique identifier (18 chars).",
+        "first_name": "Contact's first name.",
+        "last_name": "Contact's last name.",
+        "name": "Full name or corporate entity name.",
+        "email": "Contact's email address.",
+        "phone": "Contact's phone number.",
+        "gender": "Contact's gender.",
+        "lead_source": "Source where the contact originated.",
+        "status": "Contact status (e.g., New, Active).",
+        "website": "Contact's website.",
+        "tier": "Customer tier (Bronze, Silver, Gold, Platinum).",
+        "description": "Additional notes about the contact.",
+        "ai_summary": "AI-generated summary of the contact.",
+        "last_interaction_at": "Timestamp of the last interaction.",
+        "created_at": "Timestamp when record was created.",
+        "updated_at": "Timestamp when record was last updated.",
+        "deleted_at": "Soft delete timestamp."
+      }
+    },
+    "opportunities": {
+      "description": "Sales deals or opportunities tracked in the system.",
+      "columns": {
+        "id": "Unique identifier (18 chars).",
+        "contact": "Lookup to contacts table.",
+        "product": "Lookup to products table.",
+        "lead": "Lookup to leads table.",
+        "brand": "Lookup to vehicle_specifications (Brand).",
+        "model": "Lookup to models table.",
+        "asset": "Lookup to assets table.",
+        "name": "Name of the opportunity.",
+        "amount": "Total deal amount.",
+        "stage": "Current stage (Prospecting, Qualification, Test Drive, etc.).",
+        "status": "Opportunity status (Open, Closed Won, Closed Lost).",
+        "probability": "Win probability percentage (0-100).",
+        "temperature": "Deal temperature (Hot, Warm, Cold).",
+        "last_viewed_at": "Timestamp of last view.",
+        "close_date": "Expected closing date.",
+        "ai_insight": "AI-generated insights for the deal.",
+        "is_followed": "Boolean indicating if the user is following this deal.",
+        "created_at": "Timestamp when record was created.",
+        "updated_at": "Timestamp when record was last updated.",
+        "deleted_at": "Soft delete timestamp."
+      }
+    },
+    "vehicle_specifications": {
+      "description": "Master data for vehicle brands and categories.",
+      "columns": {
+        "id": "Unique identifier (18 chars).",
+        "name": "Brand name (e.g., BMW, Audi).",
+        "record_type": "Type of record (Brand, Category).",
+        "parent": "Lookup to self for hierarchy.",
+        "description": "Notes about the brand.",
+        "created_at": "Timestamp when record was created.",
+        "updated_at": "Timestamp when record was last updated.",
+        "deleted_at": "Soft delete timestamp."
+      }
+    },
+    "models": {
+      "description": "Specific vehicle models under a brand.",
+      "columns": {
+        "id": "Unique identifier (18 chars).",
+        "name": "Model name (e.g., X5, A4).",
+        "brand": "Lookup to vehicle_specifications (Brand).",
+        "description": "Notes about the model.",
+        "created_at": "Timestamp when record was created.",
+        "updated_at": "Timestamp when record was last updated.",
+        "deleted_at": "Soft delete timestamp."
+      }
+    },
+    "products": {
+      "description": "Specific vehicle products available for sale.",
+      "columns": {
+        "id": "Unique identifier (18 chars).",
+        "name": "Product name.",
+        "brand": "Lookup to vehicle_specifications.",
+        "model": "Lookup to models table.",
+        "category": "Product category.",
+        "base_price": "Base price of the vehicle.",
+        "description": "Notes about the product.",
+        "created_at": "Timestamp when record was created.",
+        "updated_at": "Timestamp when record was last updated.",
+        "deleted_at": "Soft delete timestamp."
+      }
+    },
+    "assets": {
+      "description": "Individual vehicles owned by customers or in inventory.",
+      "columns": {
+        "id": "Unique identifier (18 chars).",
+        "contact": "Lookup to contacts table.",
+        "product": "Lookup to products table.",
+        "brand": "Lookup to vehicle_specifications.",
+        "model": "Lookup to models table.",
+        "name": "Asset name.",
+        "vin": "Vehicle Identification Number.",
+        "status": "Asset status (Active, Sold, Maintenance).",
+        "purchase_date": "Date of purchase.",
+        "price": "Purchase price.",
+        "created_at": "Timestamp when record was created.",
+        "updated_at": "Timestamp when record was last updated.",
+        "deleted_at": "Soft delete timestamp."
+      }
+    },
+    "message_templates": {
+      "description": "Templates for SMS/LMS/MMS messaging.",
+      "columns": {
+        "id": "Unique identifier (18 chars).",
+        "name": "Template name.",
+        "subject": "Message subject.",
+        "content": "Message body content.",
+        "record_type": "Type (SMS, LMS, MMS).",
+        "file_path": "Local path for attachments.",
+        "image_url": "URL for message images.",
+        "attachment_id": "Lookup to attachments table.",
+        "created_at": "Timestamp when record was created.",
+        "updated_at": "Timestamp when record was last updated.",
+        "deleted_at": "Soft delete timestamp."
+      }
+    },
+    "message_sends": {
+      "description": "Log of messages sent to customers.",
+      "columns": {
+        "id": "Unique identifier (18 chars).",
+        "contact": "Lookup to contacts table.",
+        "template": "Lookup to message_templates table.",
+        "direction": "Message direction (Inbound, Outbound).",
+        "content": "Sent message content.",
+        "status": "Delivery status (Pending, Sent, Failed).",
+        "provider_message_id": "ID from messaging provider (e.g., SureM).",
+        "sent_at": "Timestamp when message was sent.",
+        "created_at": "Timestamp when record was created.",
+        "updated_at": "Timestamp when record was last updated.",
+        "deleted_at": "Soft delete timestamp."
+      }
+    },
+    "attachments": {
+      "description": "Files and images attached to message templates or other records.",
+      "columns": {
+        "id": "Unique identifier (18 chars).",
+        "name": "File name.",
+        "file_path": "Local storage path.",
+        "content_type": "MIME type of the file.",
+        "file_size": "Size in bytes.",
+        "parent_id": "Generic lookup to parent record ID.",
+        "parent_type": "Type of parent (e.g., MessageTemplate).",
+        "provider_key": "External provider key (e.g., SureM imageKey).",
+        "created_at": "Timestamp when record was created.",
+        "updated_at": "Timestamp when record was last updated.",
+        "deleted_at": "Soft delete timestamp."
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "lead_brand": [],
+  "lead_model": [],
+  "lead_product": [],
+  "product_brand": [],
+  "product_model": [],
+  "asset_contact": [],
+  "asset_product": [],
+  "asset_brand": [],
+  "asset_model": [],
+  "opp_contact": [],
+  "opp_product": [],
+  "opp_lead": [],
+  "opp_brand": [],
+  "opp_model": [],
+  "opp_asset": [],
+  "message_contact": [],
+  "message_template": []
+}

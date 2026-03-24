@@ -1,0 +1,9 @@
+{
+  "metadata_schema_issues": {},
+  "lookup_completion_counts": {
+    "leads_brand_model_product_complete": 50,
+    "assets_contact_product_brand_model_complete": 50,
+    "opportunities_core_lookup_complete": 50,
+    "messages_contact_template_complete": 50
+  }
+}

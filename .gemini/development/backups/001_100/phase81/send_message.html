@@ -1,0 +1,1588 @@
+{% extends "base.html" %}
+
+{% block title %}Send Message - AI CRM{% endblock %}
+
+{% block content %}
+<div style="padding: 1.5rem; max-width: 1400px; margin: 0 auto;">
+    <div id="messaging-main-view">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h1 style="font-size: 1.5rem; font-weight: 700;">Send Message</h1>
+            <button class="btn btn-primary" onclick="window.location.href='/'">Back to Home</button>
+        </div>
+
+        <div class="sf-card" style="display: grid; grid-template-columns: 1fr 400px; gap: 2rem; padding: 2rem;">
+            <!-- Left: Compose Area -->
+            <div style="display: flex; flex-direction: column; gap: 2rem;">
+                
+                <!-- Recipient Selection Area -->
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+                        <label style="font-size: 0.875rem; font-weight: 600; color: var(--text-label);">Recipients</label>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <button onclick="toggleAiRecommend(this)" data-active="false" class="btn btn-sm" style="background: #f0f7ff; color: #0176d3; border: 1px solid #0176d3; height: 34px; padding: 0 12px; display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                                <span style="font-size: 1rem;">✨</span> AI Recommend
+                            </button>
+                            <input type="text" id="recipient-search" placeholder="Search Name, Phone, Model, Stage..." 
+                                   style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 4px; width: 250px; font-size: 0.85rem;"
+                                   oninput="filterRecipients()">
+                        </div>
+                    </div>
+                    
+                    <div style="border: 1px solid var(--border); border-radius: 4px; max-height: 250px; overflow-y: auto;">
+                        <table class="sf-table" id="recipient-table">
+                            <thead style="position: sticky; top: 0; background: white; z-index: 10;">
+                                <tr>
+                                    <th style="width: 40px; text-align: center;"><input type="checkbox" id="select-all" onclick="Messaging.recipients.toggleSelectAll(this)"></th>
+                                    <th onclick="sortTable(this, 1)" style="cursor: pointer;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            Name
+                                            <svg focusable="false" aria-hidden="true" viewBox="0 0 52 52" style="width: 12px; height: 12px; fill: var(--text-label);"><path d="M8.3 14h35.4c1 0 1.7 1.3.9 2.2L27.3 37.4c-.6.8-1.9.8-2.5 0L7.3 16.2c-.7-.9-.1-2.2 1-2.2z"></path></svg>
+                                        </div>
+                                    </th>
+                                    <th onclick="sortTable(this, 2)" style="cursor: pointer;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            Status
+                                            <svg focusable="false" aria-hidden="true" viewBox="0 0 52 52" style="width: 12px; height: 12px; fill: var(--text-label);"><path d="M8.3 14h35.4c1 0 1.7 1.3.9 2.2L27.3 37.4c-.6.8-1.9.8-2.5 0L7.3 16.2c-.7-.9-.1-2.2 1-2.2z"></path></svg>
+                                        </div>
+                                    </th>
+                                    <th onclick="sortTable(this, 3)" style="cursor: pointer;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            Phone
+                                            <svg focusable="false" aria-hidden="true" viewBox="0 0 52 52" style="width: 12px; height: 12px; fill: var(--text-label);"><path d="M8.3 14h35.4c1 0 1.7 1.3.9 2.2L27.3 37.4c-.6.8-1.9.8-2.5 0L7.3 16.2c-.7-.9-.1-2.2 1-2.2z"></path></svg>
+                                        </div>
+                                    </th>
+                                    <th onclick="sortTable(this, 4)" style="cursor: pointer;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            Opp Stage
+                                            <svg focusable="false" aria-hidden="true" viewBox="0 0 52 52" style="width: 12px; height: 12px; fill: var(--text-label);"><path d="M8.3 14h35.4c1 0 1.7 1.3.9 2.2L27.3 37.4c-.6.8-1.9.8-2.5 0L7.3 16.2c-.7-.9-.1-2.2 1-2.2z"></path></svg>
+                                        </div>
+                                    </th>
+                                    <th onclick="sortTable(this, 5)" style="cursor: pointer;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            Opp Model
+                                            <svg focusable="false" aria-hidden="true" viewBox="0 0 52 52" style="width: 12px; height: 12px; fill: var(--text-label);"><path d="M8.3 14h35.4c1 0 1.7 1.3.9 2.2L27.3 37.4c-.6.8-1.9.8-2.5 0L7.3 16.2c-.7-.9-.1-2.2 1-2.2z"></path></svg>
+                                        </div>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="recipient-body">
+                                {% for opp in opportunities %}
+                                {% if opp.contact and opp.contact.phone %}
+                                <tr class="recipient-row">
+                                   <td style="text-align: center;"><input type="checkbox" name="selected_recipients" value="{{ opp.contact_id }}" data-opp-id="{{ opp.id }}" data-name="{{ opp.contact.name }}" onclick="updateSelectionOrder(this)"></td>
+                                   <td class="search-field">{{ opp.contact.name }} (Opty: {{ opp.name }})</td>
+                                   <td id="status-{{ opp.id }}" class="status-cell" style="font-size: 0.75rem; color: #1abc9c; font-weight: 600;"></td>
+                                   <td class="search-field">{{ opp.contact.phone }}</td>
+
+                                    <td class="search-field">{{ opp.stage }}</td>
+                                    <td class="search-field">{{ opp.model.name if opp.model else '-' }}</td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="selection-import-note" style="display: none; padding: 0.85rem 1rem; border-radius: 8px; background: #f5f9ff; border: 1px solid #d7e5f7; font-size: 0.8rem; color: #35506b;"></div>
+                    <div id="duplicate-review-inline" style="display: none; padding: 1rem; border-radius: 10px; background: #fff8f2; border: 1px solid #f2d2b6; font-size: 0.82rem; color: #6d4b31;"></div>
+                </div>
+
+                <!-- Template & Message Type Area -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <label style="font-size: 0.875rem; font-weight: 600; color: var(--text-label);">Template</label>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button class="btn btn-sm" style="font-size: 0.75rem; padding: 4px 8px;" onclick="openTemplateModal(false)">New</button>
+                                <button class="btn btn-sm" id="edit-template-btn" style="font-size: 0.75rem; padding: 4px 8px; display: none;" onclick="openTemplateModal(true)">Edit</button>
+                                <button class="btn btn-sm" id="preview-template-btn" style="font-size: 0.75rem; padding: 4px 8px; display: none;" onclick="previewSelectedTemplate()">Preview</button>
+                                <button class="btn btn-sm" id="delete-template-btn" style="font-size: 0.75rem; padding: 4px 8px; color: var(--error); display: none;" onclick="deleteSelectedTemplate()">Delete</button>
+                                <button class="btn btn-sm" style="font-size: 0.75rem; padding: 4px 8px; color: var(--error);" onclick="openBulkDeleteTemplatesModal()">Bulk Del</button>
+                            </div>
+                        </div>
+                        <div id="template-import-note" style="display: none; margin-bottom: 0.75rem; padding: 0.75rem 0.9rem; border-radius: 8px; background: #f4f9ff; border: 1px solid #d8e5f6; font-size: 0.8rem; color: #35506b;"></div>
+                        <select id="template-select" class="sf-inline-input" onchange="applyTemplate(this.value)" style="height: 40px; width: 100%;">
+                            <option value="">-- Select Template --</option>
+                            {% for t in templates %}
+                            <option value="{{ t.id }}" 
+                                    data-body="{{ t.content }}" 
+                                    data-name="{{ t.name }}" 
+                                    data-subject="{{ t.subject or '' }}"
+                                    data-type="{{ t.record_type }}" 
+                                    data-image="{{ t.image_url or '' }}"
+                                    data-file-path="{{ t.file_path or '' }}"
+                                    data-attachment-id="{{ t.attachment_id or '' }}">
+                                {{ t.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div id="template-preview-card" style="display: none; margin-top: 0.75rem; padding: 0.9rem; border: 1px solid var(--border); border-radius: 8px; background: #fafcff;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+                                <div>
+                                    <div id="template-preview-name" style="font-size: 0.9rem; font-weight: 700; color: #16325c;"></div>
+                                    <div id="template-preview-type" style="font-size: 0.74rem; color: var(--text-label); margin-top: 2px;"></div>
+                                </div>
+                                <div id="template-preview-subject" style="font-size: 0.75rem; color: #49617f; text-align: right;"></div>
+                            </div>
+                            <div id="template-preview-image-wrap" style="display: none; margin-top: 0.75rem;">
+                                <button type="button" onclick="openTemplateImageLightbox()" style="border: none; background: transparent; padding: 0; cursor: pointer;">
+                                    <img id="template-preview-image" style="width: 96px; height: 96px; object-fit: cover; border-radius: 10px; border: 1px solid var(--border);">
+                                </button>
+                                <div style="font-size: 0.72rem; color: var(--text-label); margin-top: 0.35rem;">Click to preview template image</div>
+                            </div>
+                            <div id="template-preview-body" style="margin-top: 0.75rem; font-size: 0.82rem; color: #33465c; line-height: 1.5; white-space: pre-wrap;"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-label); margin-bottom: 0.5rem;">Message Type</label>
+                        <div style="display: flex; gap: 1.5rem; height: 40px; align-items: center; border: 1px solid var(--border); border-radius: 4px; padding: 0 1rem; background: #f9f9f9;">
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer;">
+                                <input type="radio" name="msg_type" value="SMS" checked onclick="updateCharLimit()"> SMS
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer;">
+                                <input type="radio" name="msg_type" value="LMS" onclick="updateCharLimit()"> LMS
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer;">
+                                <input type="radio" name="msg_type" value="MMS" onclick="updateCharLimit()"> MMS
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Content Area -->
+                <div id="subject-area" style="display: none; margin-bottom: 1.5rem;">
+                    <label style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-label); margin-bottom: 0.5rem;">Subject</label>
+                    <input type="text" id="message-subject" style="width: 100%; height: 40px; padding: 0 1rem; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem;" oninput="updatePreview()" placeholder="Enter message subject (LMS/MMS only)">
+                    <div style="text-align: right; font-size: 0.75rem; color: var(--text-label); margin-top: 0.25rem;">
+                        <span id="char-count-subject">0</span> / 40 bytes
+                    </div>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-label); margin-bottom: 0.5rem;">Content</label>
+                    <textarea id="message-content" style="width: 100%; height: 180px; padding: 1rem; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem; font-family: inherit; resize: vertical;" oninput="updatePreview()"></textarea>
+                    <div style="display: flex; justify-content: space-between; margin-top: 0.5rem;">
+                        <span id="mms-info" style="font-size: 0.75rem; color: #1abc9c; display: none;">MMS: JPG only (max 500KB)</span>
+                        <div style="flex-grow: 1;"></div>
+                        <div style="text-align: right; font-size: 0.75rem; color: var(--text-label);">
+                            <span id="char-count">0</span> / <span id="char-limit">90</span> chars/bytes
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MMS Attachment (Conditional) -->
+                <div id="mms-attachment-area" style="display: none; border: 2px dashed var(--border); border-radius: 8px; padding: 1.5rem; text-align: center; background: #f9f9f9;">
+                    <input type="file" id="mms-image" accept="image/jpeg, image/jpg" style="display: none;" onchange="handleImageUpload(this)">
+                    <input type="hidden" id="message-attachment-id">
+                    <button class="btn" onclick="document.getElementById('mms-image').click()" style="background: white; border: 1px solid var(--border); margin-bottom: 10px;">Select JPG Attachment</button>
+                    <div id="image-preview-container" style="display: none; margin-top: 10px;">
+                        <img id="mms-preview-img" style="max-width: 200px; max-height: 200px; border-radius: 4px; border: 1px solid var(--border);">
+                        <div id="image-name" style="font-size: 0.75rem; color: var(--text-label); margin-top: 5px;"></div>
+                        <button class="btn btn-sm" style="color: #e74c3c; background: none; margin-top: 5px;" onclick="removeImage()">Remove</button>
+                    </div>
+                    <p style="font-size: 0.7rem; color: var(--text-label);">Maximum size: 500KB. Only .jpg files are supported.</p>
+                </div>
+
+                </div>
+
+
+            <!-- Right: Mobile Preview -->
+            <div style="display: flex; flex-direction: column; gap: 1.5rem; align-items: center;">
+                <div style="width: 100%;">
+                    <label style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-label); margin-bottom: 0.5rem;">Mobile Preview</label>
+                    <!-- Taller phone: 250px x 600px -->
+                    <div style="width: 250px; height: 600px; background: #f3f3f3; border: 10px solid #333; border-radius: 38px; padding: 15px; box-sizing: content-box; position: relative; margin: 0 auto; overflow: hidden; box-shadow: 0 15px 40px rgba(0,0,0,0.1);">
+                        <!-- Notch -->
+                        <div style="width: 110px; height: 24px; background: #333; position: absolute; top: 0; left: 50%; transform: translateX(-50%); border-bottom-left-radius: 15px; border-bottom-right-radius: 15px; z-index: 20;"></div>
+                        
+                        <!-- Chat Screen -->
+                        <div style="background: white; height: 100%; border-radius: 15px; display: flex; flex-direction: column; position: relative; z-index: 10;">
+                            <div style="text-align: center; border-bottom: 1px solid #eee; padding: 20px 10px 10px;">
+                                <div style="width: 44px; height: 44px; background: #0176d3; border-radius: 50%; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700;">GK</div>
+                                <div style="font-size: 0.8rem; font-weight: 700; color: #333;">GK CRM Support</div>
+                            </div>
+                            
+                            <div style="flex-grow: 1; padding: 15px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; background: #f4f4f7;">
+                                <div id="preview-msg-container" style="display: none; align-self: flex-start; max-width: 85%; flex-direction: column;">
+                                    <div id="preview-mms-img-card" style="display: none; margin-bottom: 10px; z-index: 2;">
+                                        <img id="preview-mms-display" style="width: 100%; border-radius: 12px; display: block;">
+                                    </div>
+                                    <div id="preview-bubble" style="background: #eef2f7; padding: 12px 16px; border-radius: 18px; font-size: 0.85rem; color: #000; word-break: break-word; line-height: 1.4; border: 1px solid #d8dde6; position: relative; z-index: 1;">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="padding: 10px; border-top: 1px solid #eee; display: flex; gap: 8px;">
+                                <div style="flex-grow: 1; height: 32px; background: #f0f0f0; border-radius: 16px;"></div>
+                                <div style="width: 32px; height: 32px; background: #ccc; border-radius: 50%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons: Aligned with 300px outer phone width -->
+                <div style="display: flex; flex-direction: column; gap: 0.75rem; width: 300px; margin-top: 1rem;">
+                    <button class="btn btn-primary" onclick="sendMessage()" style="width: 100%; padding: 0.85rem; font-weight: 700; font-size: 1rem; box-shadow: 0 4px 6px rgba(1, 118, 211, 0.2);">Send Message</button>
+                    <button class="btn" onclick="openPreviewModal()" style="width: 100%; background: #f0f7ff; color: #0176d3; border: 1px solid #0176d3; padding: 0.6rem; font-weight: 600;">Preview Message</button>
+                    <button class="btn" style="width: 100%; background: white; border: 1px solid var(--border); padding: 0.6rem;" onclick="clearAll()">Clear All</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- Post-Send Summary (Hidden by default) -->
+    <div id="messaging-summary-view" style="display: none; flex-direction: column; gap: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h1 style="font-size: 1.5rem; font-weight: 700; color: #2ecc71;">✓ Messages Sent Successfully</h1>
+            <button class="btn btn-primary" onclick="window.location.reload()">Send Another</button>
+        </div>
+        
+        <div class="sf-card" style="padding: 2rem;">
+            <h3 style="margin-bottom: 1.5rem; font-size: 1.1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">Transmission Summary</h3>
+            <table class="sf-table">
+                <thead>
+                    <tr>
+                        <th>Recipient</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Sent At</th>
+                    </tr>
+                </thead>
+                <tbody id="summary-table-body">
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Template CRUD Modal -->
+<div id="template-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
+    <div class="sf-card" style="width: 500px; padding: 2rem;">
+        <h2 id="modal-title" style="margin-bottom: 1.5rem;">Create New Template</h2>
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <div>
+                <label style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-label); margin-bottom: 0.5rem;">Template Name</label>
+                <input type="text" id="modal-tpl-name" class="sf-inline-input" style="width: 100%; height: 40px; border: 1px solid var(--border);">
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-label); margin-bottom: 0.5rem;">Subject (LMS/MMS only)</label>
+                <input type="text" id="modal-tpl-subject" class="sf-inline-input" style="width: 100%; height: 40px; border: 1px solid var(--border);">
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-label); margin-bottom: 0.5rem;">Content</label>
+                <textarea id="modal-tpl-content" style="width: 100%; height: 150px; padding: 1rem; border: 1px solid var(--border); border-radius: 4px; font-size: 1rem; font-family: inherit; resize: vertical;"></textarea>
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-label); margin-bottom: 0.5rem;">Record Type</label>
+                <select id="modal-tpl-type" class="sf-inline-input" style="width: 100%; height: 40px; border: 1px solid var(--border);">
+                    <option value="SMS">SMS</option>
+                    <option value="LMS">LMS</option>
+                    <option value="MMS">MMS</option>
+                </select>
+            </div>
+            <div id="modal-mms-upload-area" style="display: none; border: 1px dashed var(--border); border-radius: 8px; padding: 1rem; background: #fafcff;">
+                <label style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-label); margin-bottom: 0.5rem;">MMS Image</label>
+                <input type="file" id="modal-tpl-image" accept="image/jpeg, image/jpg" style="display: none;" onchange="handleTemplateImageUpload(this)">
+                <input type="hidden" id="modal-tpl-file-path">
+                <input type="hidden" id="modal-tpl-attachment-id">
+                <input type="hidden" id="modal-tpl-image-url">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.75rem;">
+                    <button type="button" class="btn" style="background: white; border: 1px solid var(--border);" onclick="document.getElementById('modal-tpl-image').click()">Upload JPG</button>
+                    <span style="font-size: 0.72rem; color: var(--text-label);">JPG only, max 500KB</span>
+                </div>
+                <div style="font-size: 0.72rem; color: #7a5f47; margin-bottom: 0.75rem;">Replacing or removing the image will replace the previous template image.</div>
+                <div id="modal-image-preview-container" style="display: none; align-items: center; gap: 0.9rem;">
+                    <img id="modal-tpl-preview" style="width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                        <div id="modal-tpl-file-name" style="font-size: 0.82rem; font-weight: 700; color: #16325c;"></div>
+                        <div id="modal-tpl-file-info" style="font-size: 0.74rem; color: var(--text-label);"></div>
+                        <button type="button" class="btn btn-sm" style="padding: 0; background: none; color: var(--error); text-align: left;" onclick="clearTemplateImageUpload()">Remove Image</button>
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem;">
+                <button class="btn" style="background: white; border: 1px solid var(--border);" onclick="closeTemplateModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveTemplate()">Save Template</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Template Bulk Delete Modal -->
+<div id="template-bulk-delete-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
+    <div class="sf-card" style="width: 600px; padding: 0; overflow: hidden;">
+        <div style="padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0;">Bulk Delete Templates</h2>
+            <button class="btn" style="padding: 4px 8px;" onclick="closeBulkDeleteTemplatesModal()">✕</button>
+        </div>
+        <div style="max-height: 400px; overflow-y: auto; padding: 1rem;">
+            <table class="sf-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;"><input type="checkbox" id="selectAllTemplates" onclick="toggleAllTemplateCheckboxes(this)"></th>
+                        <th>NAME</th>
+                        <th>TYPE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in templates %}
+                    <tr>
+                        <td><input type="checkbox" class="template-row-checkbox" value="{{ t.id }}" onclick="updateTemplateDeleteButtonState()"></td>
+                        <td>{{ t.name }}</td>
+                        <td>{{ t.record_type }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div style="padding: 1.5rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 1rem; background: #fafaf9;">
+            <button class="btn" onclick="closeBulkDeleteTemplatesModal()">Cancel</button>
+            <button id="template-bulk-delete-btn" class="btn btn-primary" style="background-color: var(--error); border-color: var(--error); display: none;" onclick="confirmTemplateBulkDelete()">Delete (0)</button>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Message Modal -->
+<div id="preview-msg-modal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);">
+    <div class="sf-card" style="position: relative; margin: 5% auto; width: 80%; max-width: 900px; padding: 0; overflow: hidden; border-radius: 8px;">
+        <div style="padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #fafaf9;">
+            <h2 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #16325c;">Preview Messages</h2>
+            <button onclick="closePreviewModal()" style="border: none; background: none; cursor: pointer; font-size: 1.5rem; color: #706e6b;">&times;</button>
+        </div>
+        
+        <div style="max-height: 50vh; overflow-y: auto; padding: 1.5rem;">
+            <p style="font-size: 0.9rem; color: var(--text-label); margin-bottom: 1rem;">Confirm the messages to be sent to the selected recipients.</p>
+            <div id="preview-modal-summary" style="font-size: 0.82rem; color: #5e7085; margin-bottom: 0.9rem;"></div>
+            <table class="sf-table">
+                <thead>
+                    <tr>
+                        <th style="width: 200px;">RECIPIENT</th>
+                        <th style="width: 100px;">TYPE</th>
+                        <th>SUBJECT / CONTENT</th>
+                        <th style="width: 100px;">IMAGE</th>
+                    </tr>
+                </thead>
+                <tbody id="preview-modal-body">
+                    <!-- Dynamic rows -->
+                </tbody>
+            </table>
+        </div>
+        
+        <div style="padding: 1.5rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 1rem; background: #fafaf9;">
+            <button class="btn" style="background: white; border: 1px solid var(--border);" onclick="closePreviewModal()">Cancel</button>
+            <button class="btn" style="background: #f0f7ff; color: #0176d3; border: 1px solid #0176d3; font-weight: 600;" onclick="saveStagedMessages()">Save (Stage Only)</button>
+            <button class="btn btn-primary" style="font-weight: 700;" onclick="sendFromPreview()">Send All Selected</button>
+        </div>
+    </div>
+</div>
+
+<div id="template-image-lightbox" class="modal" style="display: none; position: fixed; z-index: 1150; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6);">
+    <div class="sf-card" style="position: relative; margin: 6% auto; width: 78%; max-width: 760px; padding: 1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <strong id="template-image-lightbox-title" style="font-size: 1rem; color: #16325c;">Template Image</strong>
+            <button onclick="closeTemplateImageLightbox()" style="border: none; background: none; cursor: pointer; font-size: 1.5rem; color: #706e6b;">&times;</button>
+        </div>
+        <div style="display: flex; justify-content: center; align-items: center; max-height: 70vh; overflow: auto;">
+            <img id="template-image-lightbox-img" style="max-width: 100%; max-height: 68vh; border-radius: 12px;">
+        </div>
+    </div>
+</div>
+
+<div id="duplicate-review-modal" class="modal" style="display: none; position: fixed; z-index: 1200; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.55);">
+    <div class="sf-card" style="position: relative; margin: 6% auto; width: 82%; max-width: 760px; padding: 0; overflow: hidden; border-radius: 10px;">
+        <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #fffaf5;">
+            <div>
+                <h2 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #7a4924;">Duplicate Phone Review</h2>
+                <p style="margin: 0.4rem 0 0; font-size: 0.82rem; color: #7a5f47;">Some selected records share the same phone number. Duplicate sends are excluded by default to reduce spam risk.</p>
+            </div>
+            <button onclick="closeDuplicateReviewModal()" style="border: none; background: none; cursor: pointer; font-size: 1.5rem; color: #706e6b;">&times;</button>
+        </div>
+        <div style="padding: 1.5rem; max-height: 45vh; overflow-y: auto;">
+            <div id="duplicate-review-summary" style="font-size: 0.86rem; color: #5b4637; margin-bottom: 0.45rem;"></div>
+            <div id="duplicate-review-excluded" style="font-size: 0.8rem; color: #8a5a33; margin-bottom: 1rem;"></div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-bottom: 1rem;">
+                <button class="btn" style="background: white; border: 1px solid #d7deeb; color: #35506b; padding: 0.45rem 0.8rem;" onclick="toggleAllDuplicateOptions(false)">Keep One Per Phone</button>
+                <button class="btn" style="background: white; border: 1px solid #d7deeb; color: #35506b; padding: 0.45rem 0.8rem;" onclick="toggleAllDuplicateOptions(true)">Select All Duplicates</button>
+            </div>
+            <div id="duplicate-review-groups" style="display: flex; flex-direction: column; gap: 0.9rem;"></div>
+        </div>
+        <div style="padding: 1.25rem 1.5rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 0.75rem; background: #fafaf9;">
+            <button class="btn" style="background: white; border: 1px solid var(--border);" onclick="closeDuplicateReviewModal()">Cancel</button>
+            <button class="btn" style="background: white; border: 1px solid #d7deeb; color: #35506b;" onclick="continueSendWithDuplicatePreference(false)">Keep Duplicates Excluded</button>
+            <button class="btn btn-primary" onclick="continueSendWithDuplicatePreference(true)">Send To Duplicates Too</button>
+            <button class="btn btn-primary" style="background: #16325c; border-color: #16325c;" onclick="sendUsingDuplicateReviewSelection()">Send Using Review Selection</button>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/bulk_action.js"></script>
+<script>
+    function filterRecipients() {
+        const query = document.getElementById('recipient-search').value.toLowerCase();
+        const rows = document.querySelectorAll('.recipient-row');
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            row.style.display = text.includes(query) ? '' : 'none';
+        });
+    }
+
+    function updateSelectionOrder(cb) {
+        if (cb.checked) {
+            if (!selectionOrder.includes(cb.value)) selectionOrder.push(cb.value);
+        } else {
+            selectionOrder = selectionOrder.filter(id => id !== cb.value);
+        }
+    }
+
+    function toggleSelectAll(checkbox) {
+        const visibleCheckboxes = document.querySelectorAll('.recipient-row[style=""] input[name="selected_recipients"], .recipient-row:not([style]) input[name="selected_recipients"]');
+        visibleCheckboxes.forEach(cb => {
+            cb.checked = checkbox.checked;
+            updateSelectionOrder(cb);
+        });
+    }
+
+    function updateCharLimit() {
+        const type = document.querySelector('input[name="msg_type"]:checked').value;
+        const limitSpan = document.getElementById('char-limit');
+        const mmsArea = document.getElementById('mms-attachment-area');
+        const mmsInfo = document.getElementById('mms-info');
+        const subjectArea = document.getElementById('subject-area');
+        
+        if (type === 'SMS') {
+            limitSpan.innerText = '90';
+            mmsArea.style.display = 'none';
+            mmsInfo.style.display = 'none';
+            subjectArea.style.display = 'none';
+        } else {
+            limitSpan.innerText = '2,000';
+            subjectArea.style.display = 'block';
+            if (type === 'MMS') {
+                mmsArea.style.display = 'block';
+                mmsInfo.style.display = 'inline';
+            } else {
+                mmsArea.style.display = 'none';
+                mmsInfo.style.display = 'none';
+            }
+        }
+        updatePreview();
+    }
+
+    async function handleImageUpload(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        if (file.type !== 'image/jpeg' && file.type !== 'image/jpg') {
+            showToast("Only JPG files are allowed.", true);
+            input.value = '';
+            return;
+        }
+
+        if (file.size > 500 * 1024) {
+            showToast("File size must be less than 500KB.", true);
+            input.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('image-preview-container').style.display = 'block';
+            document.getElementById('mms-preview-img').src = e.target.result;
+            document.getElementById('image-name').innerText = file.name;
+            
+            document.getElementById('preview-mms-display').src = e.target.result;
+            document.getElementById('preview-mms-img-card').style.display = 'block';
+            updatePreview();
+        };
+        reader.readAsDataURL(file);
+
+        // Upload to server immediately to get attachment metadata for the compose flow
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+            const response = await fetch('/messaging/templates/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            if (response.ok) {
+                document.getElementById('message-attachment-id').value = data.attachment_id;
+                console.log("Message image metadata stored:", data.provider_key);
+                showToast("Image Upload Successful");
+            } else {
+                showToast("Image upload failed: " + (data.message || "Unknown"), true);
+            }
+        } catch (error) {
+            console.error("MMS Upload error:", error);
+            showToast("Failed to upload image to the server.", true);
+        }
+    }
+
+    function removeImage() {
+        document.getElementById('mms-image').value = '';
+        document.getElementById('image-preview-container').style.display = 'none';
+        document.getElementById('preview-mms-img-card').style.display = 'none';
+        document.getElementById('message-attachment-id').value = '';
+    }
+
+    function applyTemplate(templateId) {
+        const select = document.getElementById('template-select');
+        const option = select.options[select.selectedIndex];
+        const importNote = document.getElementById('template-import-note');
+        const body = option.getAttribute('data-body');
+        const subject = option.getAttribute('data-subject');
+        const imageUrl = option.getAttribute('data-image');
+        const type = option.getAttribute('data-type');
+        
+        if (body !== null) {
+            document.getElementById('message-content').value = body;
+            document.getElementById('message-subject').value = subject || '';
+            
+            // Set message type if present
+            if (type) {
+                const radio = document.querySelector(`input[name="msg_type"][value="${type}"]`);
+                if (radio) {
+                    radio.checked = true;
+                    updateCharLimit();
+                }
+            }
+
+            document.getElementById('edit-template-btn').style.display = 'inline-block';
+            document.getElementById('preview-template-btn').style.display = 'inline-block';
+            document.getElementById('delete-template-btn').style.display = 'inline-block';
+            document.getElementById('template-preview-card').style.display = 'block';
+            document.getElementById('template-preview-name').innerText = option.getAttribute('data-name') || 'Selected Template';
+            document.getElementById('template-preview-type').innerHTML = `Type: <span style="display:inline-flex;align-items:center;gap:6px;"><span style="padding:2px 8px;border-radius:999px;background:${type === 'MMS' ? '#fff3e8' : type === 'LMS' ? '#eef4ff' : '#eef8f1'};color:${type === 'MMS' ? '#b35a00' : type === 'LMS' ? '#3057b7' : '#1f7a4d'};font-weight:700;">${type || 'SMS'}</span></span>`;
+            document.getElementById('template-preview-subject').innerText = subject ? `Subject: ${subject}` : 'No subject';
+            document.getElementById('template-preview-body').innerText = body || '';
+            const imageUrl = option.getAttribute('data-image') || '';
+            const imageWrap = document.getElementById('template-preview-image-wrap');
+            const imageEl = document.getElementById('template-preview-image');
+            if (imageUrl) {
+                imageWrap.style.display = 'block';
+                imageEl.src = imageUrl;
+            } else {
+                imageWrap.style.display = 'none';
+                imageEl.src = '';
+            }
+            
+            // Handle image sync
+            const mmsImgCard = document.getElementById('preview-mms-img-card');
+            const mmsDisplay = document.getElementById('preview-mms-display');
+            const attachmentId = option.getAttribute('data-attachment-id');
+            
+            // Sync hidden attachment ID
+            document.getElementById('message-attachment-id').value = attachmentId || '';
+
+            if (imageUrl) {
+                // Mobile Preview
+                mmsImgCard.style.display = 'block';
+                mmsDisplay.src = imageUrl;
+                
+                // MMS Attachment Area (Visual sync as "the attachment")
+                document.getElementById('image-preview-container').style.display = 'block';
+                document.getElementById('mms-preview-img').src = imageUrl;
+                document.getElementById('image-name').innerText = "Template Image";
+                if (importNote && sessionStorage.getItem('aiAgentTemplateImported') === 'true') {
+                    importNote.style.display = 'block';
+                    importNote.innerHTML = 'AI Agent loaded an <strong>MMS</strong> template. <span style="display:inline-flex;align-items:center;gap:6px;margin-left:6px;"><span style="padding:2px 8px;border-radius:999px;background:#fff3e8;color:#b35a00;font-weight:700;">MMS</span></span> Subject, content, and image preview are ready for review before sending.';
+                }
+            } else {
+                mmsImgCard.style.display = 'none';
+                mmsDisplay.src = '';
+                
+                // Clear Attachment area if no image in template
+                if (!document.getElementById('mms-image').value) {
+                    document.getElementById('image-preview-container').style.display = 'none';
+                }
+                if (importNote && sessionStorage.getItem('aiAgentTemplateImported') === 'true') {
+                    importNote.style.display = 'block';
+                    importNote.innerHTML = `AI Agent loaded this template into Send Message. <span style="display:inline-flex;align-items:center;gap:6px;margin-left:6px;"><span style="padding:2px 8px;border-radius:999px;background:${type === 'LMS' ? '#eef4ff' : '#eef8f1'};color:${type === 'LMS' ? '#3057b7' : '#1f7a4d'};font-weight:700;">${type || 'SMS'}</span></span> Review the content, then choose recipients when ready.`;
+                }
+            }
+            
+            updatePreview();
+        } else {
+            document.getElementById('edit-template-btn').style.display = 'none';
+            document.getElementById('preview-template-btn').style.display = 'none';
+            document.getElementById('delete-template-btn').style.display = 'none';
+            document.getElementById('template-preview-card').style.display = 'none';
+            document.getElementById('template-preview-image-wrap').style.display = 'none';
+            document.getElementById('preview-mms-img-card').style.display = 'none';
+            document.getElementById('preview-mms-display').src = '';
+            if (importNote) {
+                importNote.style.display = 'none';
+                importNote.innerText = '';
+            }
+        }
+    }
+
+    function openTemplateImageLightbox() {
+        const image = document.getElementById('template-preview-image');
+        if (!image || !image.src) return;
+        document.getElementById('template-image-lightbox-img').src = image.src;
+        document.getElementById('template-image-lightbox-title').innerText = document.getElementById('template-preview-name').innerText || 'Template Image';
+        document.getElementById('template-image-lightbox').style.display = 'block';
+    }
+
+    function closeTemplateImageLightbox() {
+        document.getElementById('template-image-lightbox').style.display = 'none';
+        document.getElementById('template-image-lightbox-img').src = '';
+    }
+
+    function previewSelectedTemplate() {
+        const select = document.getElementById('template-select');
+        const option = select.options[select.selectedIndex];
+        if (!option || !option.value) {
+            showToast("Select a template first.", true);
+            return;
+        }
+
+        const tbody = document.getElementById('preview-modal-body');
+        const type = option.getAttribute('data-type') || 'SMS';
+        const subject = option.getAttribute('data-subject') || '';
+        const content = option.getAttribute('data-body') || '';
+        const imageUrl = option.getAttribute('data-image') || '';
+        tbody.innerHTML = `
+            <tr>
+                <td><strong>${option.getAttribute('data-name') || 'Selected Template'}</strong></td>
+                <td><span class="badge" style="background: #f0f7ff; color: #0176d3;">${type}</span></td>
+                <td>
+                    ${type !== 'SMS' ? `<div style="font-weight: 700; color: #16325c;">[${subject || 'No Subject'}]</div>` : ''}
+                    <div style="font-size: 0.85rem; color: #555; white-space: pre-wrap;">${content || '(No Content)'}</div>
+                </td>
+                <td>
+                    ${type === 'MMS' && imageUrl ? `<img src="${imageUrl}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;">` : '-'}
+                </td>
+            </tr>
+        `;
+        document.getElementById('preview-msg-modal').style.display = 'block';
+    }
+
+    async function deleteSelectedTemplate() {
+        const select = document.getElementById('template-select');
+        const option = select.options[select.selectedIndex];
+        if (!option || !option.value) {
+            showToast("Select a template first.", true);
+            return;
+        }
+
+        const templateId = option.value;
+        const templateName = option.getAttribute('data-name') || 'this template';
+        showConfirmModal("Delete Template", `Are you sure you want to delete \"${templateName}\"?`, async () => {
+            try {
+                const response = await fetch(`/messaging/templates/${templateId}`, { method: 'DELETE' });
+                if (response.ok) {
+                    showToast("Template deleted successfully!");
+                    location.reload();
+                } else {
+                    showToast("Failed to delete template.", true);
+                }
+            } catch (error) {
+                console.error("Delete Template error:", error);
+                showToast("An error occurred.", true);
+            }
+        });
+    }
+
+    function openTemplateModal(isEdit) {
+        const modal = document.getElementById('template-modal');
+        const title = document.getElementById('modal-title');
+        const nameInput = document.getElementById('modal-tpl-name');
+        const subjectInput = document.getElementById('modal-tpl-subject');
+        const contentInput = document.getElementById('modal-tpl-content');
+        
+        if (isEdit) {
+            const select = document.getElementById('template-select');
+            const option = select.options[select.selectedIndex];
+            if (!option.value) return;
+            title.innerText = "Edit Template";
+            nameInput.value = option.getAttribute('data-name');
+            subjectInput.value = option.getAttribute('data-subject') || "";
+            contentInput.value = option.getAttribute('data-body');
+            const modalType = document.getElementById('modal-tpl-type');
+            modalType.value = option.getAttribute('data-type') || "SMS";
+            document.getElementById('modal-tpl-file-path').value = option.getAttribute('data-file-path') || '';
+            document.getElementById('modal-tpl-attachment-id').value = option.getAttribute('data-attachment-id') || '';
+            document.getElementById('modal-tpl-image-url').value = option.getAttribute('data-image') || '';
+            toggleTemplateImageArea(modalType.value);
+            if (option.getAttribute('data-image')) {
+                document.getElementById('modal-image-preview-container').style.display = 'flex';
+                document.getElementById('modal-tpl-preview').src = option.getAttribute('data-image');
+                document.getElementById('modal-tpl-file-name').innerText = option.getAttribute('data-name') || 'Template Image';
+                document.getElementById('modal-tpl-file-info').innerText = 'Existing template image';
+            } else {
+                clearTemplateImageUpload();
+            }
+        } else {
+            title.innerText = "Create New Template";
+            nameInput.value = "";
+            subjectInput.value = "";
+            contentInput.value = "";
+            document.getElementById('modal-tpl-type').value = "SMS";
+            clearTemplateImageUpload();
+            toggleTemplateImageArea('SMS');
+        }
+        modal.style.display = 'flex';
+    }
+
+    function closeTemplateModal() {
+        document.getElementById('template-modal').style.display = 'none';
+    }
+
+    function toggleTemplateImageArea(type) {
+        const area = document.getElementById('modal-mms-upload-area');
+        if (!area) return;
+        area.style.display = type === 'MMS' ? 'block' : 'none';
+        if (type !== 'MMS') {
+            clearTemplateImageUpload();
+        }
+    }
+
+    function clearTemplateImageUpload() {
+        document.getElementById('modal-tpl-image').value = '';
+        document.getElementById('modal-tpl-file-path').value = '';
+        document.getElementById('modal-tpl-attachment-id').value = '';
+        document.getElementById('modal-tpl-image-url').value = '';
+        document.getElementById('modal-image-preview-container').style.display = 'none';
+        document.getElementById('modal-tpl-preview').src = '';
+        document.getElementById('modal-tpl-file-name').innerText = '';
+        document.getElementById('modal-tpl-file-info').innerText = '';
+    }
+
+    async function handleTemplateImageUpload(input) {
+        const file = input.files[0];
+        if (!file) return;
+        if (file.type !== 'image/jpeg' && file.type !== 'image/jpg') {
+            showToast('MMS templates only support JPG images.', true);
+            input.value = '';
+            return;
+        }
+        if (file.size > 500 * 1024) {
+            showToast('MMS template images must be 500KB or smaller.', true);
+            input.value = '';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch('/messaging/templates/upload', {
+                method: 'POST',
+                body: formData,
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                showToast(data.message || 'Failed to upload template image.', true);
+                return;
+            }
+
+            document.getElementById('modal-tpl-file-path').value = data.file_path || '';
+            document.getElementById('modal-tpl-attachment-id').value = data.attachment_id || '';
+            document.getElementById('modal-tpl-image-url').value = data.image_url || '';
+            document.getElementById('modal-image-preview-container').style.display = 'flex';
+            document.getElementById('modal-tpl-preview').src = data.image_url || '';
+            document.getElementById('modal-tpl-file-name').innerText = data.name || file.name;
+            document.getElementById('modal-tpl-file-info').innerText = `${Math.round((data.size || file.size) / 1024)} KB · JPG`;
+            showToast('Template image uploaded successfully.');
+        } catch (error) {
+            console.error('Template image upload error:', error);
+            showToast('Failed to upload template image.', true);
+        }
+    }
+
+    async function saveTemplate() {
+        const name = document.getElementById('modal-tpl-name').value;
+        const subject = document.getElementById('modal-tpl-subject').value;
+        const content = document.getElementById('modal-tpl-content').value;
+        const record_type = document.getElementById('modal-tpl-type').value;
+        const file_path = document.getElementById('modal-tpl-file-path').value;
+        const attachment_id = document.getElementById('modal-tpl-attachment-id').value;
+        const image_url = document.getElementById('modal-tpl-image-url').value;
+        const select = document.getElementById('template-select');
+        const existingId = select.value;
+        const title = document.getElementById('modal-title').innerText;
+
+        if (!name || !content) {
+            showToast("Please fill in name and content.", true);
+            return;
+        }
+        if (record_type === 'MMS' && (!attachment_id || !image_url)) {
+            showToast('MMS templates require a JPG image under 500KB.', true);
+            return;
+        }
+
+        try {
+            const payload = { name, content, record_type, subject, file_path, attachment_id, image_url };
+            if (title === "Edit Template") {
+                payload.id = existingId;
+            }
+
+            const response = await fetch('/messaging/templates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (response.ok) {
+                showToast("Template saved successfully!");
+                closeTemplateModal();
+                location.reload(); 
+            } else {
+                showToast("Failed to save template.", true);
+            }
+        } catch (error) {
+            console.error("Save Template error:", error);
+            showToast("An error occurred.", true);
+        }
+    }
+
+    function openBulkDeleteTemplatesModal() {
+        document.getElementById('template-bulk-delete-modal').style.display = 'flex';
+    }
+
+    function closeBulkDeleteTemplatesModal() {
+        document.getElementById('template-bulk-delete-modal').style.display = 'none';
+    }
+
+    function toggleAllTemplateCheckboxes(source) {
+        const checkboxes = document.querySelectorAll('.template-row-checkbox');
+        checkboxes.forEach(cb => cb.checked = source.checked);
+        updateTemplateDeleteButtonState();
+    }
+
+    function updateTemplateDeleteButtonState() {
+        const checkboxes = document.querySelectorAll('.template-row-checkbox:checked');
+        const deleteBtn = document.getElementById('template-bulk-delete-btn');
+        if (deleteBtn) {
+            if (checkboxes.length > 0) {
+                deleteBtn.style.display = 'inline-block';
+                deleteBtn.innerText = `Delete (${checkboxes.length})`;
+            } else {
+                deleteBtn.style.display = 'none';
+            }
+        }
+    }
+
+    function confirmTemplateBulkDelete() {
+        const checkboxes = document.querySelectorAll('.template-row-checkbox:checked');
+        const ids = Array.from(checkboxes).map(cb => cb.value);
+        if (ids.length === 0) return;
+
+        showConfirmModal(`Delete ${ids.length} Templates`, `Are you sure you want to delete ${ids.length} selected templates?`, () => {
+            executeBulkDelete(ids, 'MessageTemplate');
+        });
+    }
+
+    function getSelectedRecipientsDetailed() {
+        return Array.from(document.querySelectorAll('input[name="selected_recipients"]:checked')).map(cb => {
+            const row = cb.closest('tr');
+            const cells = row ? row.querySelectorAll('td') : [];
+            return {
+                contactId: cb.value,
+                opportunityId: cb.getAttribute('data-opp-id'),
+                name: cb.getAttribute('data-name') || '',
+                phone: cells[3] ? cells[3].innerText.trim() : '',
+                stage: cells[4] ? cells[4].innerText.trim() : '',
+                model: cells[5] ? cells[5].innerText.trim() : '',
+            };
+        });
+    }
+
+    function normalizePhone(phone) {
+        return (phone || '').replace(/\D/g, '');
+    }
+
+    function buildCurrentMessageConfig() {
+        return {
+            content: document.getElementById('message-content').value,
+            subject: document.getElementById('message-subject').value,
+            type: document.querySelector('input[name="msg_type"]:checked').value,
+            templateId: document.getElementById('template-select').value,
+            attachmentId: document.getElementById('message-attachment-id').value,
+        };
+    }
+
+    function getDuplicatePhoneGroups(recipients) {
+        const grouped = {};
+        recipients.forEach(recipient => {
+            const normalized = normalizePhone(recipient.phone);
+            if (!normalized) return;
+            if (!grouped[normalized]) grouped[normalized] = [];
+            grouped[normalized].push(recipient);
+        });
+        return Object.entries(grouped)
+            .filter(([, group]) => group.length > 1)
+            .map(([phone, group]) => ({ phone, records: group }));
+    }
+
+    function filterRecipientsByDuplicatePreference(recipients, includeDuplicates) {
+        if (includeDuplicates) return recipients;
+        const seenPhones = new Set();
+        const filtered = [];
+        recipients.forEach(recipient => {
+            const normalized = normalizePhone(recipient.phone);
+            if (!normalized || !seenPhones.has(normalized)) {
+                filtered.push(recipient);
+                if (normalized) seenPhones.add(normalized);
+            }
+        });
+        return filtered;
+    }
+
+    let pendingSendConfig = null;
+
+    function renderDuplicateReview(groups, recipients) {
+        const summary = document.getElementById('duplicate-review-summary');
+        const excluded = document.getElementById('duplicate-review-excluded');
+        const container = document.getElementById('duplicate-review-groups');
+        const inline = document.getElementById('duplicate-review-inline');
+        const duplicateCount = groups.reduce((total, group) => total + group.records.length, 0);
+        const excludedCount = duplicateCount - groups.length;
+
+        if (summary) {
+            summary.innerText = `${groups.length} duplicate phone group(s) found across ${recipients.length} selected record(s). ${excludedCount} extra send(s) will be excluded by default.`;
+        }
+        if (inline) {
+            inline.style.display = 'block';
+            inline.innerText = `Duplicate phones found. By default, ${excludedCount} extra send(s) will be excluded unless you choose to include duplicates.`;
+        }
+        if (excluded) {
+            excluded.innerText = excludedCount > 0 ? `Excluded by default: ${excludedCount} duplicate recipient(s). You can enable them below if needed.` : '';
+        }
+        if (!container) return;
+        const uniqueCount = recipients.length - excludedCount;
+        container.innerHTML = groups.map(group => `
+            <div style="padding: 0.9rem 1rem; border: 1px solid #f2d2b6; border-radius: 8px; background: white;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.6rem;">
+                    <div style="font-weight: 700; color: #7a4924;">Phone ${group.phone}</div>
+                    <div style="font-size: 0.75rem; color: #7a5f47;">Default keeps 1 send for this phone</div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                    ${group.records.map((record, index) => `
+                        <label style="display: flex; align-items: flex-start; gap: 0.7rem; font-size: 0.8rem; color: #6d4b31;">
+                            <input
+                                type="checkbox"
+                                class="duplicate-review-checkbox"
+                                data-phone="${group.phone}"
+                                data-contact-id="${record.contactId}"
+                                ${index === 0 ? 'checked' : ''}
+                                onchange="updateDuplicateReviewSummary()"
+                            >
+                            <span>
+                                <strong>${index === 0 ? 'Primary' : 'Duplicate'}</strong> - ${record.name}
+                                ${record.opportunityId ? `(Opportunity ${record.opportunityId})` : ''}
+                                <span style="display: block; color: #8a7058; margin-top: 2px;">${record.stage || '-'} · ${record.model || '-'}</span>
+                            </span>
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+        if (summary) {
+            summary.innerText = `${groups.length} duplicate phone group(s) found across ${recipients.length} selected record(s). ${uniqueCount} send(s) remain active by default.`;
+        }
+    }
+
+    function openDuplicateReviewModal() {
+        document.getElementById('duplicate-review-modal').style.display = 'block';
+    }
+
+    function closeDuplicateReviewModal() {
+        document.getElementById('duplicate-review-modal').style.display = 'none';
+        pendingSendConfig = null;
+    }
+
+    function continueSendWithDuplicatePreference(includeDuplicates) {
+        if (!pendingSendConfig) return;
+        document.getElementById('duplicate-review-modal').style.display = 'none';
+        const filteredRecipients = filterRecipientsByDuplicatePreference(pendingSendConfig.recipients, includeDuplicates);
+        const excludedRecipients = includeDuplicates
+            ? []
+            : pendingSendConfig.recipients.filter(recipient => !filteredRecipients.some(item => item.contactId === recipient.contactId));
+        sendPreparedMessages(filteredRecipients, pendingSendConfig.messageConfig, { excludedRecipients });
+        pendingSendConfig = null;
+    }
+
+    function toggleAllDuplicateOptions(includeDuplicates) {
+        const checkboxes = document.querySelectorAll('.duplicate-review-checkbox');
+        const firstByPhone = new Set();
+        checkboxes.forEach(checkbox => {
+            const phone = checkbox.getAttribute('data-phone');
+            if (!firstByPhone.has(phone)) {
+                checkbox.checked = true;
+                firstByPhone.add(phone);
+                return;
+            }
+            checkbox.checked = includeDuplicates;
+        });
+        updateDuplicateReviewSummary();
+    }
+
+    function updateDuplicateReviewSummary() {
+        if (!pendingSendConfig) return;
+        const summary = document.getElementById('duplicate-review-summary');
+        const excluded = document.getElementById('duplicate-review-excluded');
+        const totalSelected = getReviewedDuplicateRecipients().length;
+        const overall = pendingSendConfig.recipients.length;
+        if (summary) {
+            summary.innerText = `Review complete: ${totalSelected} of ${overall} selected record(s) will receive the message.`;
+        }
+        if (excluded) {
+            excluded.innerText = `${overall - totalSelected} recipient(s) are currently excluded from delivery.`;
+        }
+    }
+
+    function getReviewedDuplicateRecipients() {
+        if (!pendingSendConfig) return [];
+        const approvedContactIds = new Set(
+            Array.from(document.querySelectorAll('.duplicate-review-checkbox:checked')).map(cb => cb.getAttribute('data-contact-id'))
+        );
+        const duplicatePhones = new Set((pendingSendConfig.duplicateGroups || []).map(group => group.phone));
+        return pendingSendConfig.recipients.filter(recipient => {
+            const normalized = normalizePhone(recipient.phone);
+            if (!duplicatePhones.has(normalized)) return true;
+            return approvedContactIds.has(recipient.contactId);
+        });
+    }
+
+    function resolveRecipientsForPreview() {
+        const recipients = pendingSendConfig ? pendingSendConfig.recipients : getSelectedRecipientsDetailed();
+        const duplicateGroups = pendingSendConfig ? (pendingSendConfig.duplicateGroups || []) : getDuplicatePhoneGroups(recipients);
+        const messageConfig = pendingSendConfig ? pendingSendConfig.messageConfig : buildCurrentMessageConfig();
+
+        if (pendingSendConfig && document.querySelector('.duplicate-review-checkbox')) {
+            const reviewedRecipients = getReviewedDuplicateRecipients();
+            return {
+                recipients: reviewedRecipients,
+                originalRecipients: recipients,
+                duplicateGroups,
+                messageConfig,
+                excludedCount: recipients.length - reviewedRecipients.length,
+            };
+        }
+
+        const filteredRecipients = filterRecipientsByDuplicatePreference(recipients, false);
+        return {
+            recipients: filteredRecipients,
+            originalRecipients: recipients,
+            duplicateGroups,
+            messageConfig,
+            excludedCount: recipients.length - filteredRecipients.length,
+        };
+    }
+
+    function buildGroupedMessagePayload(recipients, messageConfig) {
+        const groups = {};
+
+        recipients.forEach(recipient => {
+            const id = recipient.contactId;
+            const name = recipient.name;
+            let msgData;
+
+            if (stagedMessages[id]) {
+                msgData = {
+                    content: stagedMessages[id].content,
+                    subject: stagedMessages[id].subject,
+                    type: stagedMessages[id].type,
+                    templateId: null,
+                    attachmentId: stagedMessages[id].attachmentId || null,
+                };
+            } else {
+                msgData = {
+                    content: messageConfig.content,
+                    subject: messageConfig.subject,
+                    type: messageConfig.type,
+                    templateId: messageConfig.templateId || null,
+                    attachmentId: messageConfig.attachmentId || null,
+                };
+            }
+
+            const key = JSON.stringify(msgData);
+            if (!groups[key]) groups[key] = { msg: msgData, contactIds: [], recipientNames: [] };
+            groups[key].contactIds.push(id);
+            groups[key].recipientNames.push(name);
+        });
+
+        return groups;
+    }
+
+    function sendUsingDuplicateReviewSelection() {
+        if (!pendingSendConfig) return;
+        const reviewedRecipients = getReviewedDuplicateRecipients();
+        if (!reviewedRecipients.length) {
+            showToast('Keep at least one recipient selected before sending.', true);
+            return;
+        }
+        document.getElementById('duplicate-review-modal').style.display = 'none';
+        const excludedRecipients = pendingSendConfig.recipients.filter(recipient => !reviewedRecipients.some(item => item.contactId === recipient.contactId));
+        sendPreparedMessages(reviewedRecipients, pendingSendConfig.messageConfig, { excludedRecipients });
+        pendingSendConfig = null;
+    }
+
+    function initializeAiAgentSelection() {
+        const raw = sessionStorage.getItem('aiAgentMessageSelection');
+        const note = document.getElementById('selection-import-note');
+        if (!raw || !note) return;
+
+        try {
+            const selection = JSON.parse(raw);
+            const ids = selection.ids || [];
+            if (!ids.length) return;
+
+            let matched = 0;
+            const checkboxes = document.querySelectorAll('input[name="selected_recipients"]');
+            checkboxes.forEach(cb => {
+                const matchesContact = selection.object_type === 'contact' && ids.includes(cb.value);
+                const matchesOpportunity = selection.object_type === 'opportunity' && ids.includes(cb.getAttribute('data-opp-id'));
+                if (matchesContact || matchesOpportunity) {
+                    cb.checked = true;
+                    updateSelectionOrder(cb);
+                    matched += 1;
+                }
+            });
+
+            note.style.display = 'block';
+            if (matched > 0) {
+                note.innerText = `Loaded ${matched} selected ${selection.object_type} record(s) from AI Agent. Review duplicates by phone before sending.`;
+            } else {
+                note.innerText = `The AI Agent passed ${ids.length} ${selection.object_type} record(s), but this screen can only preselect matching Contacts or Opportunities with phone numbers.`;
+            }
+        } catch (error) {
+            console.error('AI Agent message selection parse error:', error);
+        } finally {
+            sessionStorage.removeItem('aiAgentMessageSelection');
+        }
+    }
+
+    function initializeAiAgentTemplate() {
+        const templateId = sessionStorage.getItem('aiAgentMessageTemplate');
+        if (!templateId) return;
+
+        const select = document.getElementById('template-select');
+        if (!select) return;
+        const option = Array.from(select.options).find(item => item.value === templateId);
+        if (option) {
+            sessionStorage.setItem('aiAgentTemplateImported', 'true');
+            select.value = templateId;
+            applyTemplate(templateId);
+            showToast(`Loaded template: ${option.getAttribute('data-name') || option.text}`);
+        }
+        sessionStorage.removeItem('aiAgentMessageTemplate');
+    }
+
+    function validateCurrentMessageConfig(messageConfig) {
+        if (!messageConfig.content) {
+            showToast('Message content is required.', true);
+            return false;
+        }
+        if (messageConfig.type === 'MMS' && !messageConfig.attachmentId) {
+            showToast('MMS messages require a JPG image under 500KB.', true);
+            return false;
+        }
+        return true;
+    }
+
+    async function sendPreparedMessages(recipients, messageConfig, meta = {}) {
+        if (!recipients.length) {
+            showToast("Please select at least one recipient.", true);
+            return;
+        }
+        if (!validateCurrentMessageConfig(messageConfig)) {
+            return;
+        }
+
+        const groups = buildGroupedMessagePayload(recipients, messageConfig);
+
+        showToast(`Sending messages in ${Object.keys(groups).length} batches...`);
+
+        try {
+            const summaryBody = document.getElementById('summary-table-body');
+            summaryBody.innerHTML = '';
+            const now = new Date().toLocaleString();
+            let hasError = false;
+
+            for (const key of Object.keys(groups)) {
+                const group = groups[key];
+                const msg = group.msg;
+
+                const response = await fetch('/messaging/bulk-send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contact_ids: group.contactIds,
+                        template_id: msg.templateId,
+                        content: msg.content,
+                        subject: msg.subject || null,
+                        record_type: msg.type,
+                        attachment_id: msg.attachmentId
+                    })
+                });
+
+                if (response.ok) {
+                    group.recipientNames.forEach(name => {
+                        summaryBody.innerHTML += `
+                            <tr>
+                                <td><strong>${name}</strong></td>
+                                <td><span class="badge" style="background: #f0f7ff; color: #0176d3;">${msg.type}</span></td>
+                                <td><span style="color: #2ecc71;">Sent</span></td>
+                                <td style="font-size: 0.8rem; color: var(--text-label);">${now}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    // Clear staging for these successful ones
+                    group.contactIds.forEach(id => {
+                        delete stagedMessages[id];
+                        const statusCell = document.getElementById(`status-${id}`);
+                        if (statusCell) statusCell.innerHTML = '';
+                    });
+                } else {
+                    hasError = true;
+                    const error = await response.json();
+                    showToast(`Error in one batch: ${error.detail || "Failed"}`, true);
+                }
+            }
+
+            const excludedRecipients = meta.excludedRecipients || [];
+            excludedRecipients.forEach(recipient => {
+                summaryBody.innerHTML += `
+                    <tr>
+                        <td><strong>${recipient.name}</strong></td>
+                        <td><span class="badge" style="background: #fff6e5; color: #8a5a33;">Skipped</span></td>
+                        <td><span style="color: #8a5a33;">Excluded Duplicate Phone</span></td>
+                        <td style="font-size: 0.8rem; color: var(--text-label);">-</td>
+                    </tr>
+                `;
+            });
+
+            if (!hasError) {
+                document.getElementById('messaging-main-view').style.display = 'none';
+                document.getElementById('messaging-summary-view').style.display = 'flex';
+                showToast("All shipments have been completed.");
+            }
+        } catch (error) {
+            console.error("Send Message error:", error);
+            showToast("An error occurred while sending.", true);
+        }
+    }
+
+    async function sendMessage() {
+        const recipients = getSelectedRecipientsDetailed();
+        if (recipients.length === 0) {
+            showToast("Please select at least one recipient.", true);
+            return;
+        }
+
+        const messageConfig = buildCurrentMessageConfig();
+
+        const duplicateGroups = getDuplicatePhoneGroups(recipients);
+        if (duplicateGroups.length > 0) {
+            pendingSendConfig = { recipients, messageConfig, duplicateGroups };
+            renderDuplicateReview(duplicateGroups, recipients);
+            openDuplicateReviewModal();
+            updateDuplicateReviewSummary();
+            return;
+        }
+
+        const inline = document.getElementById('duplicate-review-inline');
+        if (inline) inline.style.display = 'none';
+        sendPreparedMessages(recipients, messageConfig, { excludedRecipients: [] });
+    }
+
+    function getByteLength(str) {
+        return new Blob([str]).size;
+    }
+
+    function limitByteLength(inputElem, maxBytes) {
+        let str = inputElem.value;
+        if (getByteLength(str) <= maxBytes) return;
+        
+        let truncated = "";
+        for (let i = 0; i < str.length; i++) {
+            let char = str[i];
+            if (getByteLength(truncated + char) > maxBytes) {
+                break;
+            }
+            truncated += char;
+        }
+        inputElem.value = truncated;
+    }
+
+    function updatePreview() {
+        const type = document.querySelector('input[name="msg_type"]:checked').value;
+        const limit = type === 'SMS' ? 90 : 2000;
+        
+        // Enforce byte limits on input
+        limitByteLength(document.getElementById('message-subject'), 40);
+        limitByteLength(document.getElementById('message-content'), limit);
+
+        const content = document.getElementById('message-content').value;
+        const subject = document.getElementById('message-subject').value;
+        const bubble = document.getElementById('preview-bubble');
+        const charCount = document.getElementById('char-count');
+        const charCountSubj = document.getElementById('char-count-subject');
+        const container = document.getElementById('preview-msg-container');
+        
+        const size = getByteLength(content);
+        charCount.innerText = size.toLocaleString();
+        if (size > limit) {
+            charCount.style.color = '#e74c3c';
+            charCount.style.fontWeight = 'bold';
+        } else {
+            charCount.style.color = '';
+            charCount.style.fontWeight = '';
+        }
+
+        if (type !== 'SMS') {
+            const subjSize = getByteLength(subject);
+            charCountSubj.innerText = subjSize;
+            if (subjSize > 40) {
+                charCountSubj.style.color = '#e74c3c';
+                charCountSubj.style.fontWeight = 'bold';
+            } else {
+                charCountSubj.style.color = '';
+                charCountSubj.style.fontWeight = '';
+            }
+        }
+
+        if (content || document.getElementById('preview-mms-img-card').style.display !== 'none') {
+            let previewHTML = "";
+            if (type !== 'SMS' && subject) {
+                previewHTML += `<div style="font-weight: 700; margin-bottom: 4px; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 2px;">[${subject}]</div>`;
+            }
+            previewHTML += content;
+            bubble.innerHTML = previewHTML;
+            bubble.style.display = 'block';
+            container.style.display = 'flex';
+        } else {
+            container.style.display = 'none';
+        }
+    }
+
+    let aiRecommendedIds = null;
+    let stagedMessages = {}; // { oppId: { subject, content, type, imageUrl, templateName } }
+    let selectionOrder = []; // Track selection order
+
+    function openPreviewModal() {
+        const plan = resolveRecipientsForPreview();
+        if (!plan.recipients.length) {
+            showToast("Please select at least one recipient first.", true);
+            return;
+        }
+
+        const type = plan.messageConfig.type;
+        const subject = plan.messageConfig.subject;
+        const content = plan.messageConfig.content;
+        const imageUrl = document.getElementById('preview-mms-display').src;
+        const templateSelect = document.getElementById('template-select');
+        const previewSummary = document.getElementById('preview-modal-summary');
+
+        const tbody = document.getElementById('preview-modal-body');
+        tbody.innerHTML = '';
+        if (previewSummary) {
+            previewSummary.innerText = plan.excludedCount > 0
+                ? `Previewing ${plan.recipients.length} recipient(s). ${plan.excludedCount} duplicate recipient(s) are currently excluded by phone.`
+                : `Previewing ${plan.recipients.length} recipient(s). Preview and send use the same delivery plan.`;
+        }
+
+        // Iterate over selection order to ensure correct ordering
+        selectionOrder.forEach(oppId => {
+            const cb = document.querySelector(`input[name="selected_recipients"][value="${oppId}"]`);
+            if (!cb || !cb.checked) return;
+            const recipient = plan.recipients.find(item => item.contactId === cb.value);
+            if (!recipient) return;
+            
+            const name = cb.getAttribute('data-name');
+            
+            // Prioritize staged data if it exists
+            const displayData = stagedMessages[cb.value] || {
+                type: type,
+                subject: subject,
+                content: content,
+                imageUrl: (type === 'MMS') ? imageUrl : null
+            };
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td><strong>${name}</strong></td>
+                    <td><span class="badge" style="background: #f0f7ff; color: #0176d3;">${displayData.type}</span></td>
+                    <td>
+                        ${displayData.type !== 'SMS' ? `<div style="font-weight: 700; color: #16325c;">[${displayData.subject || 'No Subject'}]</div>` : ''}
+                        <div style="font-size: 0.85rem; color: #555; white-space: pre-wrap;">${displayData.content || '(No Content)'}</div>
+                    </td>
+                    <td>
+                        ${displayData.type === 'MMS' && displayData.imageUrl ? `<img src="${displayData.imageUrl}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;">` : '-'}
+                    </td>
+                </tr>
+            `;
+        });
+
+        document.getElementById('preview-msg-modal').style.display = 'block';
+    }
+
+    function closePreviewModal() {
+        document.getElementById('preview-msg-modal').style.display = 'none';
+    }
+
+    function saveStagedMessages() {
+        const selected = document.querySelectorAll('input[name="selected_recipients"]:checked');
+        const type = document.querySelector('input[name="msg_type"]:checked').value;
+        const subject = document.getElementById('message-subject').value;
+        const content = document.getElementById('message-content').value;
+        
+        // Fix Image URL: always get it from the preview if it's MMS
+        let imageUrl = null;
+        if (type === 'MMS') {
+             const mmsDisplay = document.getElementById('preview-mms-display');
+             if (mmsDisplay && mmsDisplay.style.display !== 'none' && mmsDisplay.src) {
+                 imageUrl = mmsDisplay.src;
+             }
+        }
+        
+        const templateSelect = document.getElementById('template-select');
+        const templateName = templateSelect.value ? templateSelect.options[templateSelect.selectedIndex].text : "Custom";
+        const attachmentId = document.getElementById('message-attachment-id').value;
+
+        selected.forEach(cb => {
+            const oppId = cb.getAttribute('data-opp-id');
+            // Only stage if it hasn't been staged yet (Staged records should never change)
+            if (oppId && !stagedMessages[oppId]) {
+                stagedMessages[oppId] = {
+                    subject: subject,
+                    content: content,
+                    type: type,
+                    imageUrl: imageUrl,
+                    templateName: templateName,
+                    attachmentId: attachmentId
+                };
+                
+                // Update table row
+                const statusCell = document.getElementById(`status-${oppId}`);
+                if (statusCell) {
+                    statusCell.innerHTML = `<span title="${templateName}">✨ Staged</span>`;
+                    statusCell.style.color = '#0176d3';
+                }
+            }
+        });
+
+        showToast(`Saved staging for ${selected.length} recipients.`);
+        closePreviewModal();
+    }
+
+    async function sendFromPreview() {
+        const plan = resolveRecipientsForPreview();
+        closePreviewModal();
+        const excludedRecipients = (plan.originalRecipients || []).filter(recipient => !plan.recipients.some(item => item.contactId === recipient.contactId));
+        sendPreparedMessages(plan.recipients, plan.messageConfig, { excludedRecipients });
+    }
+
+    async function toggleAiRecommend(btn) {
+        const isActive = btn.getAttribute('data-active') === 'true';
+        const rows = document.querySelectorAll('.recipient-row');
+
+        if (isActive) {
+            // Turning OFF: Show all rows
+            rows.forEach(row => row.style.display = '');
+            btn.setAttribute('data-active', 'false');
+            btn.style.background = '#f0f7ff';
+            btn.style.color = '#0176d3';
+            btn.style.borderColor = '#0176d3';
+            btn.innerHTML = '<span style="font-size: 1rem;">✨</span> AI Recommend';
+            showToast("Showing all recipients.");
+        } else {
+            // Turning ON: Fetch and filter
+            if (!aiRecommendedIds) {
+                const originalText = btn.innerHTML;
+                btn.innerHTML = "Processing...";
+                btn.disabled = true;
+                try {
+                    const response = await fetch('/messaging/recommendations');
+                    if (response.ok) {
+                        const recommendedOpps = await response.json();
+                        aiRecommendedIds = recommendedOpps.map(opp => opp.id.toString());
+                    } else {
+                        showToast("Failed to fetch AI recommendations.", true);
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                        return;
+                    }
+                } catch (error) {
+                    console.error("AI Recommend error:", error);
+                    showToast("An error occurred during AI recommendation.", true);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    return;
+                } finally {
+                    btn.disabled = false;
+                }
+            }
+
+            // Apply filter
+            let count = 0;
+            rows.forEach(row => {
+                const checkbox = row.querySelector('input[name="selected_recipients"]');
+                const id = checkbox ? checkbox.getAttribute('data-opp-id') : null;
+                if (aiRecommendedIds.includes(id)) {
+                    row.style.display = '';
+                    // Optional: Auto-check recommended if requested (User said "just table to be seen", so maybe just filter?)
+                    // For now, let's just filter to show them.
+                    count++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            btn.setAttribute('data-active', 'true');
+            btn.style.background = '#0176d3';
+            btn.style.color = 'white';
+            btn.style.borderColor = '#014486';
+            btn.innerHTML = '<span style="font-size: 1rem;">✨</span> AI View ON';
+            showToast(`Filtered to ${count} AI recommended deals.`);
+        }
+    }
+
+    function clearAll() {
+        document.getElementById('message-content').value = '';
+        document.getElementById('message-subject').value = '';
+        document.getElementById('template-select').value = '';
+        document.getElementById('edit-template-btn').style.display = 'none';
+        document.getElementById('preview-template-btn').style.display = 'none';
+        document.getElementById('delete-template-btn').style.display = 'none';
+        document.getElementById('template-preview-card').style.display = 'none';
+        document.getElementById('template-import-note').style.display = 'none';
+        document.getElementById('template-import-note').innerText = '';
+        sessionStorage.removeItem('aiAgentTemplateImported');
+        removeImage();
+        
+        // Clear staged messages
+        stagedMessages = {};
+        
+        // Clear all status cells
+        const statusCells = document.querySelectorAll('.status-cell');
+        statusCells.forEach(cell => {
+            cell.innerHTML = '';
+        });
+        
+        showToast("Cleared compose area and staged messages.");
+        updatePreview();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        updateCharLimit();
+        initializeAiAgentSelection();
+        initializeAiAgentTemplate();
+        document.getElementById('modal-tpl-type').addEventListener('change', (event) => {
+            toggleTemplateImageArea(event.target.value);
+        });
+    });
+</script>
+
+<style>
+    .recipient-row:hover { background: #f9f9f9; }
+    #recipient-table th { padding: 12px 10px; font-weight: 700; color: #16325c; border-bottom: 2px solid var(--border); }
+    #recipient-table td { padding: 10px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+    .search-field { color: var(--text-dark); }
+</style>
+{% endblock %}

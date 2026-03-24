@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - Salesforce{% endblock %}
+
+{% block content %}
+<div style="padding: 1rem;">
+    <div class="sf-card" style="padding: 0; overflow: hidden;">
+        <div style="padding: 1rem 1rem 0.8rem; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%); display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 0.85rem;">
+                {% if page_icon %}
+                <div class="sf-related-icon sf-related-icon--{{ page_icon }}" style="width: 2.4rem; height: 2.4rem; border-radius: 0.8rem;">
+                    {% if page_icon == 'opportunity' %}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18h16v2H4zm2-3 4.2-5.2 3.1 2.7L18 7l2 1.6-6 7.3-3.2-2.8L8 17Z"/></svg>{% endif %}
+                    {% if page_icon == 'contact' %}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4.5 4.5 0 1 0-4.5-4.5A4.5 4.5 0 0 0 12 12Zm-7 8v-1.3A4.7 4.7 0 0 1 9.7 14h4.6A4.7 4.7 0 0 1 19 18.7V20Z"/></svg>{% endif %}
+                    {% if page_icon == 'product' %}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 9 4.5v11L12 22 3 17.5v-11Zm0 2.2L6 7l6 2.8L18 7ZM5 8.6v7.7l6 3v-7.7Zm14 0-6 3v7.7l6-3Z"/></svg>{% endif %}
+                    {% if page_icon == 'asset' %}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 16h14l1.5 3H3.5ZM7 8h10l2 6H5Zm2-4h6l1 2H8Z"/></svg>{% endif %}
+                    {% if page_icon == 'brand' %}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h8a4 4 0 0 1 0 8H6Zm0 10h10a4 4 0 0 1 0 8H6Zm2-8v4h6a2 2 0 0 0 0-4Zm0 10v4h8a2 2 0 0 0 0-4Z"/></svg>{% endif %}
+                    {% if page_icon == 'model' %}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17h16v2H4Zm2-3 2.5-6h7L18 14h-2.2l-1-2.4H9.2L8.2 14Zm4-4.2h4l-1.2-2.8h-1.6Z"/></svg>{% endif %}
+                    {% if page_icon == 'message' %}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16a2 2 0 0 1 2 2v10l-4-2.5H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm1.6 3 6.4 4.5L18.4 8Z"/></svg>{% endif %}
+                    {% if page_icon == 'lead' %}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-3.33 0-6 1.79-6 4v1h12v-1c0-2.21-2.67-4-6-4Z"/></svg>{% endif %}
+                </div>
+                {% endif %}
+                <div>
+                    <div style="font-size: 0.78rem; color: var(--text-label);">Related List</div>
+                    <div style="font-size: 1.6rem; font-weight: 700; color: #16325c;">{{ page_title }}</div>
+                    <div style="font-size: 0.82rem; color: var(--text-label); margin-top: 0.25rem;">{{ items|length }} items</div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <a class="btn" style="text-decoration: none; color: var(--text);" href="{{ back_url }}">Back</a>
+                {% if new_url %}<button class="btn btn-primary" onclick="openModal('{{ new_url }}')">New</button>{% endif %}
+            </div>
+        </div>
+
+        <table class="sf-table">
+            <thead>
+                <tr>
+                    {% for col in columns %}
+                    <th>{{ col|upper }}</th>
+                    {% endfor %}
+                    {% if show_actions %}<th style="width: 120px;">Actions</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    {% for col in columns %}
+                    <td>
+                        {% if loop.first and item.get('_href') %}
+                        <a href="{{ item.get('_href') }}" class="sf-link" style="font-weight: 600; color: var(--nav-blue); text-decoration: none;">{{ item[col.lower()] }}</a>
+                        {% else %}
+                        {% set cell_value = item[col.lower()] %}
+                        {% if col.lower() in ['amount', 'price', 'base_price'] and cell_value not in [None, ''] %}
+                        {{ cell_value | currency }}
+                        {% else %}
+                        {{ cell_value }}
+                        {% endif %}
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                    {% if show_actions %}
+                    <td>
+                        <div style="display: flex; gap: 0.5rem;">
+                            {% if item.get('edit_url') %}<button onclick="openModal('{{ item.get('edit_url') }}')" class="btn" style="padding: 2px 8px;">Edit</button>{% endif %}
+                        </div>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: d4-app
+    runtime: python
+    rootDir: .gemini/development
+    buildCommand: pip install -r ../../requirements.txt
+    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /docs
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: DATABASE_URL
+        sync: false
+      - key: MESSAGE_PROVIDER
+        sync: false
+      - key: SLACK_MESSAGE_WEBHOOK_URL
+        sync: false
+      - key: APP_BASE_URL
+        sync: false

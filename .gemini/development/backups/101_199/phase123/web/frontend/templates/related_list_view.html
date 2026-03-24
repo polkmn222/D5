@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - Salesforce{% endblock %}
+
+{% block content %}
+<div style="padding: 1rem;">
+    <div class="sf-card" style="padding: 0; overflow: hidden;">
+        <div style="padding: 1rem 1rem 0.8rem; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%); display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+            <div>
+                <div style="font-size: 0.78rem; color: var(--text-label);">Related List</div>
+                <div style="font-size: 1.6rem; font-weight: 700; color: #16325c;">{{ page_title }}</div>
+                <div style="font-size: 0.82rem; color: var(--text-label); margin-top: 0.25rem;">{{ items|length }} items</div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <a class="btn" href="{{ back_url }}">Back</a>
+                {% if new_url %}<button class="btn btn-primary" onclick="openModal('{{ new_url }}')">New</button>{% endif %}
+            </div>
+        </div>
+
+        <table class="sf-table">
+            <thead>
+                <tr>
+                    {% for col in columns %}
+                    <th>{{ col|upper }}</th>
+                    {% endfor %}
+                    {% if show_actions %}<th style="width: 120px;">Actions</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    {% for col in columns %}
+                    <td>
+                        {% if loop.first and item.get('_href') %}
+                        <a href="{{ item.get('_href') }}" class="sf-link" style="font-weight: 600;">{{ item[col.lower()] }}</a>
+                        {% else %}
+                        {{ item[col.lower()] }}
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                    {% if show_actions %}
+                    <td>
+                        <div style="display: flex; gap: 0.5rem;">
+                            {% if item.get('edit_url') %}<button onclick="openModal('{{ item.get('edit_url') }}')" class="btn" style="padding: 2px 8px;">Edit</button>{% endif %}
+                        </div>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

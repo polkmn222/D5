@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AI CRM{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/objects.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/interactions.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/list_views.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="/static/js/lookup.js"></script>
+    <script src="/static/js/bulk_action.js"></script>
+    <script src="/static/js/list_views.js"></script>
+    <style>
+        @keyframes sfGlobalSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <header class="sf-header">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <!-- Updated Logo: GK -->
+            <img src="/static/images/gk_logo.png" alt="GK" style="height: 32px; border-radius: 4px;">
+            <span style="font-weight: 700; font-size: 1.125rem; color: #181818;">GK</span>
+        </div>
+        <div style="flex-grow: 1; display: flex; justify-content: center;">
+            <div class="sf-search-wrapper" style="display: flex; align-items: center; background: #f3f3f3; border-radius: 4px; padding: 2px 8px; width: 100%; max-width: 500px; border: 1px solid #ddd; position: relative;">
+                <select id="search-scope" style="border: none; background: transparent; padding: 4px; font-size: 0.85rem; color: #444; cursor: pointer; border-right: 1px solid #ddd; margin-right: 8px; outline: none; font-weight: 600;">
+                    <option value="all">Search: All</option>
+                    <option value="lead">Leads</option>
+                    <option value="contact">Contacts</option>
+                    <option value="opportunity">Opportunities</option>
+                    <option value="model">Models</option>
+                    <option value="brand">Brands</option>
+                    <option value="product">Products</option>
+                </select>
+                <input type="text" id="global-search-input" placeholder="Search..." style="border: none; background: transparent; flex-grow: 1; padding: 6px; outline: none; font-size: 0.9rem;" 
+                    onkeydown="if(event.key==='Enter') globalSearch(this.value)"
+                    onfocus="showRecentSearches()"
+                    oninput="handleSearchInput(this.value)"
+                    autocomplete="off">
+                <div id="search-dropdown" style="display: none; position: absolute; top: 100%; left: -1px; right: -1px; background: white; border: 1px solid #ddd; border-top: none; border-radius: 0 0 4px 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 1000; max-height: 400px; overflow-y: auto;">
+                </div>
+            </div>
+        </div>
+    </header>
+    <nav class="sf-tabs">
+        <a href="/" class="sf-tab" id="nav-home">Home</a>
+        <a href="/leads" class="sf-tab" id="nav-leads">Leads</a>
+        <a href="/contacts" class="sf-tab" id="nav-contacts">Contacts</a>
+        <a href="/opportunities" class="sf-tab" id="nav-opportunities">Opportunities</a>
+        <a href="/vehicle_specifications" class="sf-tab" id="nav-specs">Brands</a>
+        <a href="/models" class="sf-tab" id="nav-models">Models</a>
+        <a href="/products" class="sf-tab" id="nav-products">Products</a>
+        <a href="/assets" class="sf-tab" id="nav-assets">Assets</a>
+        <a href="/messages" class="sf-tab" id="nav-messages">Send</a>
+        <a href="/message_templates" class="sf-tab" id="nav-templates">Templates</a>
+    </nav>
+    <script>
+        document.querySelectorAll('.sf-tab').forEach(tab => {
+            const path = window.location.pathname;
+            const href = tab.getAttribute('href');
+            if (href === '/' && path === '/') {
+                tab.classList.add('active');
+            } else if (href !== '/' && path.startsWith(href)) {
+                tab.classList.add('active');
+            } else {
+                tab.classList.remove('active');
+            }
+        });
+    </script>
+    <div id="sf-modal-overlay" class="sf-modal-overlay">
+        <div class="sf-modal">
+            <div id="modal-content"></div>
+        </div>
+    </div>
+
+    <!-- Phase 17: Toast Notifications -->
+    <div id="sf-toast-container" class="sf-toast-container"></div>
+
+    <div id="sf-global-loading" style="display: none; position: fixed; inset: 0; z-index: 3000; background: rgba(255, 255, 255, 0.72); backdrop-filter: blur(2px); align-items: center; justify-content: center;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 0.75rem; padding: 1.1rem 1.25rem; border-radius: 1rem; background: white; box-shadow: 0 18px 40px rgba(24, 24, 24, 0.14); min-width: 190px;">
+            <div style="width: 2rem; height: 2rem; border: 3px solid #d8e6f7; border-top-color: #0070d2; border-radius: 50%; animation: sfGlobalSpin 0.75s linear infinite;"></div>
+            <div id="sf-global-loading-text" style="font-size: 0.9rem; font-weight: 600; color: #16325c;">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Phase 17: Delete Confirmation Modal -->
+    <div id="sf-confirm-modal" class="sf-confirm-modal">
+        <div class="sf-confirm-box">
+            <div class="sf-confirm-header" id="sf-confirm-title">Delete Record</div>
+            <div class="sf-confirm-body" id="sf-confirm-msg">Are you sure you want to delete this record?</div>
+            <div class="sf-confirm-footer">
+                <button class="btn btn-inline-cancel" id="sf-confirm-cancel-btn" onclick="closeConfirmModal()">Cancel</button>
+                <button class="btn btn-primary" id="sf-confirm-delete-btn" style="background:#004787;">Delete</button>
+            </div>
+        </div>
+    </div>
+    <!-- Phase 18: Edit Footer (Salesforce Style) -->
+    <div id="sf-edit-footer" class="sf-edit-footer" style="display: none;">
+        <div class="sf-edit-footer-content">
+            <button class="btn btn-inline-cancel" onclick="cancelBatchEdit()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveBatchEdit()" style="background: #0070d2;">Save</button>
+        </div>
+    </div>
+
+    <script>
+        let globalLoadingCount = 0;
+
+        function showGlobalLoading(message = 'Loading...') {
+            const overlay = document.getElementById('sf-global-loading');
+            const text = document.getElementById('sf-global-loading-text');
+            if (!overlay || !text) {
+                return;
+            }
+            globalLoadingCount += 1;
+            text.innerText = message;
+            overlay.style.display = 'flex';
+        }
+
+        function hideGlobalLoading() {
+            const overlay = document.getElementById('sf-global-loading');
+            if (!overlay) {
+                return;
+            }
+            globalLoadingCount = Math.max(0, globalLoadingCount - 1);
+            if (globalLoadingCount === 0) {
+                overlay.style.display = 'none';
+            }
+        }
+
+        function resetGlobalLoadingState() {
+            const overlay = document.getElementById('sf-global-loading');
+            if (!overlay) {
+                return;
+            }
+            globalLoadingCount = 0;
+            overlay.style.display = 'none';
+        }
+
+        function shouldSkipGlobalLoading(element) {
+            if (!element) {
+                return true;
+            }
+            if (element.closest('[data-no-loading="true"]')) {
+                return true;
+            }
+            if (element.closest('[data-ai-recommend-mode]') || element.closest('#ai-recommend-btn')) {
+                return true;
+            }
+            if (typeof element.onclick === 'function' && String(element.onclick).includes('startAiRecommend')) {
+                return true;
+            }
+            return false;
+        }
+
+        function openModal(url) {
+            showGlobalLoading('Opening...');
+            fetch(url)
+                .then(response => response.text())
+                .then(html => {
+                    const content = document.getElementById('modal-content');
+                    content.dataset.modalSourceUrl = url;
+                    content.innerHTML = html;
+                    
+                    // Manually execute scripts in the loaded HTML
+                    const scripts = content.querySelectorAll('script');
+                    scripts.forEach(oldScript => {
+                        const newScript = document.createElement('script');
+                        Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                        newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                        oldScript.parentNode.replaceChild(newScript, oldScript);
+                    });
+
+                    enhanceModalForms(content);
+
+                    document.getElementById('sf-modal-overlay').style.display = 'flex';
+                })
+                .catch(() => {
+                    showToast('Failed to open modal.', true);
+                })
+                .finally(() => {
+                    hideGlobalLoading();
+                });
+        }
+
+        function closeModal() {
+            document.getElementById('sf-modal-overlay').style.display = 'none';
+        }
+
+        // --- TOAST SYSTEM ---
+        function showToast(message, isError = false, undoUrl = null) {
+            const container = document.getElementById('sf-toast-container');
+            const toast = document.createElement('div');
+            toast.className = `sf-toast ${isError ? 'error' : ''}`;
+            
+            let innerHTML = `<span>${message}</span>`;
+            if (undoUrl) {
+                innerHTML += `<span class="undo-link" onclick="undoAction('${undoUrl}', this.parentElement)">Undo</span>`;
+            }
+            innerHTML += `<span class="close-btn" onclick="this.parentElement.remove()">×</span>`;
+            
+            toast.innerHTML = innerHTML;
+            container.appendChild(toast);
+            
+            setTimeout(() => { if(toast.parentElement) toast.remove(); }, 5000);
+        }
+
+        function undoAction(url, toastElement) {
+            runJsonAction({
+                url,
+                method: 'POST',
+                successMessage: 'Action undone successfully.',
+                onSuccess: () => {
+                    toastElement.remove();
+                    window.location.reload();
+                }
+            });
+        }
+
+        function runJsonAction({ url, method = 'POST', headers = {}, body = null, successMessage = null, errorMessage = 'Action failed.', onSuccess = null }) {
+            showGlobalLoading('Working...');
+            return fetch(url, {
+                method,
+                headers: {
+                    'Accept': 'application/json',
+                    ...headers,
+                },
+                body,
+            })
+            .then(async (res) => {
+                let data = null;
+                try {
+                    data = await res.json();
+                } catch (_error) {
+                    throw new Error(errorMessage);
+                }
+
+                if (!res.ok || (data && data.status === 'error')) {
+                    throw new Error((data && (data.message || data.error)) || errorMessage);
+                }
+
+                if (successMessage) {
+                    showToast(successMessage);
+                }
+
+                if (onSuccess) {
+                    onSuccess(data);
+                }
+
+                return data;
+            })
+            .catch((error) => {
+                showToast(error.message || errorMessage, true);
+                throw error;
+            })
+            .finally(() => {
+                hideGlobalLoading();
+            });
+        }
+
+        function decodeToastMessage(message, fallback = '') {
+            if (!message) {
+                return fallback;
+            }
+            try {
+                return decodeURIComponent(String(message).replace(/\+/g, ' '));
+            } catch (_error) {
+                return String(message).replace(/\+/g, ' ');
+            }
+        }
+
+        function enhanceModalForms(container) {
+            container.querySelectorAll('form').forEach((form) => {
+                if (form.dataset.ajaxEnhanced === 'true' || form.dataset.disableAjax === 'true') {
+                    return;
+                }
+                form.dataset.ajaxEnhanced = 'true';
+                form.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+                    const submitter = event.submitter || document.activeElement;
+                    const submitMode = submitter?.dataset?.submitMode || 'save';
+
+                    if (typeof validateForm === 'function' && validateForm(form) === false) {
+                        return;
+                    }
+
+                    const submitButton = form.querySelector('button[type="submit"]');
+                    if (submitButton) {
+                        submitButton.disabled = true;
+                    }
+                    showGlobalLoading(submitMode === 'save-new' ? 'Saving and preparing new form...' : 'Saving...');
+
+                    try {
+                        const response = await fetch(form.action || window.location.href, {
+                            method: (form.method || 'POST').toUpperCase(),
+                            body: new FormData(form),
+                            headers: { 'Accept': 'text/html,application/json' },
+                            redirect: 'follow',
+                        });
+
+                        const contentType = response.headers.get('content-type') || '';
+                        if (contentType.includes('application/json')) {
+                            const data = await response.json();
+                            if (!response.ok || data.status === 'error') {
+                                throw new Error(data.message || 'Failed to save record.');
+                            }
+                            if (submitMode === 'save-new') {
+                                showToast(data.message || 'Record saved successfully.');
+                                const sourceUrl = new URL(container.dataset.modalSourceUrl || window.location.href, window.location.origin);
+                                sourceUrl.searchParams.delete('id');
+                                const html = await fetch(sourceUrl.toString()).then((res) => res.text());
+                                container.innerHTML = html;
+                                container.dataset.modalSourceUrl = sourceUrl.toString();
+                                enhanceModalForms(container);
+                            } else {
+                                closeModal();
+                                showToast(data.message || 'Record saved successfully.');
+                                setTimeout(() => window.location.reload(), 500);
+                            }
+                            return;
+                        }
+
+                        if (response.redirected) {
+                            const finalUrl = new URL(response.url, window.location.origin);
+                            const successMsg = decodeToastMessage(finalUrl.searchParams.get('success'));
+                            const errorMsg = decodeToastMessage(finalUrl.searchParams.get('error'));
+
+                            if (errorMsg) {
+                                showToast(errorMsg, true);
+                                if (submitButton) {
+                                    submitButton.disabled = false;
+                                }
+                                return;
+                            }
+
+                            if (submitMode === 'save-new') {
+                                showToast(successMsg || 'Record saved successfully.');
+                                const sourceUrl = new URL(container.dataset.modalSourceUrl || window.location.href, window.location.origin);
+                                sourceUrl.searchParams.delete('id');
+                                const html = await fetch(sourceUrl.toString()).then((res) => res.text());
+                                container.innerHTML = html;
+                                container.dataset.modalSourceUrl = sourceUrl.toString();
+                                enhanceModalForms(container);
+                            } else if (finalUrl.pathname === window.location.pathname) {
+                                closeModal();
+                                showToast(successMsg || 'Record saved successfully.');
+                                setTimeout(() => window.location.reload(), 500);
+                            } else {
+                                closeModal();
+                                window.location.href = finalUrl.toString();
+                            }
+                            return;
+                        }
+
+                        const html = await response.text();
+                        const content = document.getElementById('modal-content');
+                        content.innerHTML = html;
+                        enhanceModalForms(content);
+                    } catch (error) {
+                        showToast(error.message || 'Failed to save record.', true);
+                    } finally {
+                        if (submitButton) {
+                            submitButton.disabled = false;
+                        }
+                        hideGlobalLoading();
+                    }
+                });
+            });
+        }
+
+        // --- DELETE CONFIRMATION ---
+        function showConfirmModal(title, msg, onConfirm) {
+            const modal = document.getElementById('sf-confirm-modal');
+            const titleEl = document.getElementById('sf-confirm-title');
+            const msgEl = document.getElementById('sf-confirm-msg');
+            const deleteBtn = document.getElementById('sf-confirm-delete-btn');
+            
+            titleEl.innerText = title;
+            msgEl.innerText = msg;
+            modal.style.display = 'flex';
+            
+            deleteBtn.onclick = () => {
+                onConfirm();
+                closeConfirmModal();
+            };
+        }
+
+        function confirmDelete(type, id, name, pluralType) {
+            const title = `Delete ${type}`;
+            const msg = `Are you sure you want to delete this ${type.toLowerCase()}?`;
+            
+            showConfirmModal(title, msg, () => {
+                const url = `/${pluralType}/${id}/delete`;
+                runJsonAction({
+                    url,
+                    method: 'POST',
+                    onSuccess: () => {
+                        showToast(`${type} "${name}" was deleted.`);
+                        setTimeout(() => { window.location.href = `/${pluralType}`; }, 1000);
+                    }
+                }).catch(() => {});
+            });
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('sf-confirm-modal').style.display = 'none';
+        }
+
+        // --- SALESFORCE INLINE EDITING (BATCH SAVE) ---
+        let draftEdits = {};
+
+        function enableBatchEdit() {
+            // Show all edit containers and hide all value displays
+            document.querySelectorAll('[id^="edit-"]').forEach(editCont => {
+                const fieldId = editCont.id.replace('edit-', '');
+                const valueDisplay = document.getElementById(`value-${fieldId}`);
+                
+                if (valueDisplay) valueDisplay.style.display = 'none';
+                editCont.style.display = 'block';
+
+                // Initialize lookup if metadata is present and it hasn't been initialized
+                const lookupType = editCont.getAttribute('data-lookup-type');
+                if (lookupType && editCont.innerHTML.trim() === '') {
+                    const fieldLabel = editCont.getAttribute('data-label');
+                    const initialId = editCont.getAttribute('data-initial-id');
+                    const initialName = editCont.getAttribute('data-initial-name');
+                    
+                    editCont.innerHTML = `<div id="lookup-inline-${fieldId}"></div>`;
+                    if (typeof initLookup === 'function') {
+                        initLookup(`lookup-inline-${fieldId}`, lookupType, fieldId, initialId, initialName);
+                    }
+                }
+
+                // Focus first input if possible
+                const input = editCont.querySelector('input, textarea, select');
+                if (input && !window.firstInputFocused) {
+                    input.focus();
+                    window.firstInputFocused = true;
+                }
+            });
+            
+            showEditFooter();
+            window.firstInputFocused = false;
+        }
+
+        function toggleInlineEdit(fieldId, objectType, recordId, fieldLabel) {
+            enableBatchEdit();
+        }
+
+        function showEditFooter() {
+            document.getElementById('sf-edit-footer').style.display = 'flex';
+            document.body.classList.add('sf-editing');
+        }
+
+        function hideEditFooter() {
+            document.getElementById('sf-edit-footer').style.display = 'none';
+            document.body.classList.remove('sf-editing');
+        }
+
+        function cancelBatchEdit() {
+            draftEdits = {};
+            // Revert all UI states
+            document.querySelectorAll('[id^="edit-"]').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('[id^="value-"]').forEach(el => el.style.display = '');
+            hideEditFooter();
+        }
+
+        function saveBatchEdit() {
+            const pathParts = window.location.pathname.split('/');
+            const objectType = pathParts[1];
+            const recordId = pathParts[2];
+            
+            // Gather all current inputs in 'edit-' containers
+            const updates = {};
+            document.querySelectorAll('[id^="edit-"]').forEach(cont => {
+                if (cont.style.display !== 'none') {
+                    const fieldId = cont.id.replace('edit-', '');
+                    const label = cont.getAttribute('data-label');
+                    const lookupInput = cont.dataset.lookupType ? cont.querySelector(`#lookup-id-${fieldId}`) : null;
+                    const input = lookupInput || cont.querySelector('input, textarea, select');
+                    if (input) {
+                        updates[label || fieldId] = input.value;
+                    }
+                }
+            });
+
+            if (Object.keys(updates).length === 0) {
+                hideEditFooter();
+                return;
+            }
+
+            runJsonAction({
+                url: `/${objectType}/${recordId}/batch-save`,
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates),
+                successMessage: 'Record updated successfully.',
+                errorMessage: 'An error occurred during save.',
+                onSuccess: () => {
+                    setTimeout(() => { window.location.reload(); }, 500);
+                }
+            }).catch(() => {});
+        }
+
+        window.onclick = function(event) {
+            // Modals can now only be closed by the "Cancel" button or explicit close calls
+            // Removed overlay click-to-close logic per user requirement
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            resetGlobalLoadingState();
+            const urlParams = new URLSearchParams(window.location.search);
+            const successMsg = urlParams.get('success');
+            const errorMsg = urlParams.get('error');
+            
+            if (successMsg) {
+                showToast(successMsg.replace(/\+/g, ' '));
+            }
+            if (errorMsg) {
+                showToast(errorMsg.replace(/\+/g, ' '), true);
+            }
+
+            if (successMsg || errorMsg) {
+                // Clean up URL without reloading
+                const newUrl = window.location.pathname;
+                window.history.replaceState({}, document.title, newUrl);
+            }
+
+            document.addEventListener('click', (event) => {
+                const pencilIcon = event.target.closest('.sf-pencil-icon');
+                if (pencilIcon) {
+                    const editableField = pencilIcon.closest('.sf-editable-field');
+                    const fieldName = editableField?.id?.startsWith('value-') ? editableField.id.replace('value-', '') : '';
+                    const editContainer = fieldName ? document.getElementById(`edit-${fieldName}`) : null;
+                    if (editContainer && editContainer.dataset.lookupType && typeof toggleLookupEdit === 'function') {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        toggleLookupEdit(
+                            fieldName,
+                            editContainer.dataset.lookupType,
+                            editContainer.dataset.label || fieldName,
+                            editContainer.dataset.initialId || '',
+                            editContainer.dataset.initialName || ''
+                        );
+                        return;
+                    }
+                    if (editableField) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        editableField.click();
+                        return;
+                    }
+                }
+
+                const link = event.target.closest('a[href]');
+                if (link && !shouldSkipGlobalLoading(link)) {
+                    const href = link.getAttribute('href') || '';
+                    if (href.startsWith('#') || href.startsWith('javascript:') || link.target === '_blank' || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                        return;
+                    }
+                    showGlobalLoading('Loading...');
+                    return;
+                }
+
+                const button = event.target.closest('button');
+                if (!button || shouldSkipGlobalLoading(button)) {
+                    return;
+                }
+                if (button.type === 'submit' || button.closest('#sf-confirm-modal') || button.getAttribute('onclick')) {
+                    const label = (button.innerText || '').trim().toLowerCase();
+                    if (label && !label.includes('cancel') && !label.includes('close')) {
+                        showGlobalLoading('Working...');
+                        setTimeout(() => hideGlobalLoading(), 1200);
+                    }
+                }
+            }, true);
+
+            document.addEventListener('submit', (event) => {
+                const form = event.target;
+                if (!(form instanceof HTMLFormElement) || shouldSkipGlobalLoading(form) || form.dataset.ajaxEnhanced === 'true') {
+                    return;
+                }
+                showGlobalLoading('Saving...');
+            }, true);
+        });
+
+        window.addEventListener('pageshow', () => {
+            resetGlobalLoadingState();
+        });
+
+        window.addEventListener('popstate', () => {
+            resetGlobalLoadingState();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                resetGlobalLoadingState();
+            }
+        });
+
+        function toggleLookupEdit(fieldId, objectType, fieldLabel, initialId, initialName) {
+            enableBatchEdit();
+            const textInput = document.getElementById(`lookup-input-${fieldId}`);
+            if (textInput) {
+                textInput.focus();
+                textInput.select();
+            }
+        }
+
+        function showComingSoon() {
+            showToast("Under Development (Coming Soon)", false);
+        }
+
+        function saveRecentSearch(query) {
+            let recents = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+            recents = recents.filter(q => q !== query);
+            recents.unshift(query);
+            localStorage.setItem('recentSearches', JSON.stringify(recents.slice(0, 5)));
+        }
+
+        function globalSearch(query) {
+            if (!query) return;
+            saveRecentSearch(query);
+            const scope = document.getElementById('search-scope').value;
+            window.location.href = `/search?q=${encodeURIComponent(query)}&type=${scope}`;
+        }
+
+        let searchTimeout;
+        function handleSearchInput(query) {
+            clearTimeout(searchTimeout);
+            if (!query) {
+                showRecentSearches();
+                return;
+            }
+            searchTimeout = setTimeout(async () => {
+                const scope = document.getElementById('search-scope').value;
+                try {
+                    const response = await fetch(`/api/search/suggestions?q=${encodeURIComponent(query)}&type=${scope}`);
+                    const suggestions = await response.json();
+                    renderSearchDropdown(suggestions, false);
+                } catch (e) {
+                    console.error("Fetch suggestions error", e);
+                }
+            }, 300);
+        }
+
+        function showRecentSearches() {
+            const recents = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+            if (recents.length > 0) {
+                renderSearchDropdown(recents.map(q => ({ name: q, type: 'Recent', url: `/search?q=${encodeURIComponent(q)}` })), true);
+            } else {
+                document.getElementById('search-dropdown').style.display = 'none';
+            }
+        }
+
+        const typeColors = {
+            'Lead': '#49a5e1',
+            'Contact': '#a094ed',
+            'Opportunity': '#fcb95b',
+            'Model': '#3ba755',
+            'Brand': '#e96d6d',
+            'Product': '#9d53f2',
+            'Template': '#2e8b57',
+            'Recent': '#666'
+        };
+
+        function renderSearchDropdown(items, isRecents) {
+            const dropdown = document.getElementById('search-dropdown');
+            if (items.length === 0) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            dropdown.innerHTML = `
+                <div style="padding: 0.5rem 0.75rem; font-size: 0.75rem; color: #666; font-weight: 700; background: #f9f9f9; border-bottom: 1px solid #eee;">
+                    ${isRecents ? 'RECENT SEARCHES' : 'SUGGESTIONS'}
+                </div>
+                ${items.map(item => {
+                    const color = typeColors[item.type] || '#666';
+                    return `
+                    <a href="${item.url}" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; text-decoration: none; color: #181818; border-bottom: 1px solid #f0f0f0;">
+                        <div style="width: 24px; height: 24px; border-radius: 4px; background: ${color}; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.7rem; font-weight: 700;">
+                            ${item.type.charAt(0)}
+                        </div>
+                        <div style="flex-grow: 1;">
+                            <div style="font-size: 0.85rem; font-weight: 600;">${item.name}</div>
+                            ${!isRecents ? `<div style="font-size: 0.7rem; color: #666;">${item.type} • ${item.info || ''}</div>` : ''}
+                        </div>
+                    </a>
+                `}).join('')}
+            `;
+            dropdown.style.display = 'block';
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const wrapper = document.querySelector('.sf-search-wrapper');
+            if (!wrapper.contains(e.target)) {
+                document.getElementById('search-dropdown').style.display = 'none';
+            }
+        });
+
+        // --- LIST VIEW UI & SORTING ---
+        function toggleDropdown(id) {
+            const dropdown = document.getElementById(id);
+            if (dropdown) {
+                dropdown.classList.toggle('active');
+            }
+        }
+        
+        window.addEventListener('click', function(e) {
+            if (!e.target.closest('.sf-dropdown')) {
+                document.querySelectorAll('.sf-dropdown.active').forEach(dd => {
+                    dd.classList.remove('active');
+                });
+            }
+        });
+
+        function selectView(viewName) {
+            showToast(`Switched to: ${viewName}`);
+            toggleDropdown('view-selector-dropdown');
+        }
+
+        let currentSortCol = -1;
+        let currentSortAsc = true;
+        
+        function sortTable(thElement, columnIndex) {
+            const table = thElement.closest('table');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            
+            if (currentSortCol === columnIndex) {
+                currentSortAsc = !currentSortAsc;
+            } else {
+                currentSortCol = columnIndex;
+                currentSortAsc = true;
+            }
+            
+            table.querySelectorAll('th svg').forEach(svg => {
+                svg.style.transform = '';
+                svg.style.fill = 'var(--text-label)';
+            });
+            const svg = thElement.querySelector('svg');
+            if (svg) {
+                svg.style.transform = currentSortAsc ? 'rotate(180deg)' : '';
+                svg.style.fill = 'var(--nav-blue)';
+            }
+            
+            const colName = thElement.innerText.trim() || 'Name';
+            const sortedBySpan = document.getElementById('current-sort-col');
+            if (sortedBySpan) {
+                sortedBySpan.innerText = colName;
+            }
+
+            rows.sort((a, b) => {
+                const tdA = a.querySelectorAll('td')[columnIndex];
+                const tdB = b.querySelectorAll('td')[columnIndex];
+                if (!tdA || !tdB) return 0;
+                
+                let valA = tdA.innerText.trim();
+                let valB = tdB.innerText.trim();
+                
+                if (valA === valB) return 0;
+                if (valA === '') return 1;
+                if (valB === '') return -1;
+
+                // Handle currency
+                if (valA.startsWith('$')) valA = valA.replace(/[^0-9.-]+/g,"");
+                if (valB.startsWith('$')) valB = valB.replace(/[^0-9.-]+/g,"");
+                
+                // Try numeric sort
+                const numA = parseFloat(valA);
+                const numB = parseFloat(valB);
+                
+                if (!isNaN(numA) && !isNaN(numB) && valA.match(/^-?\d+(\.\d+)?$/) && valB.match(/^-?\d+(\.\d+)?$/)) {
+                    return currentSortAsc ? numA - numB : numB - numA;
+                }
+
+                // Try date sort (YYYY-MM-DD or similar)
+                const dateA = Date.parse(valA);
+                const dateB = Date.parse(valB);
+                if (!isNaN(dateA) && !isNaN(dateB)) {
+                    return currentSortAsc ? dateA - dateB : dateB - dateA;
+                }
+                
+                // Fallback to string sort
+                return currentSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+            });
+            
+            tbody.innerHTML = '';
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        function filterTable(query) {
+            query = query.toLowerCase();
+            const rows = document.querySelectorAll('.sf-table tbody tr');
+            let visibleCount = 0;
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                if (text.includes(query)) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            
+            const summary = document.getElementById('list-view-summary');
+            if (summary) {
+                summary.innerHTML = summary.innerHTML.replace(/^\d+ items/, `${visibleCount} items`);
+            }
+        }
+    </script>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

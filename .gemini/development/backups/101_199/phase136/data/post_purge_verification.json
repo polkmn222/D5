@@ -1,0 +1,22 @@
+{
+  "remaining_soft_deleted": {
+    "vehicle_specifications": 0,
+    "models": 0,
+    "contacts": 0,
+    "leads": 0,
+    "products": 0,
+    "assets": 0,
+    "opportunities": 0,
+    "message_templates": 0,
+    "message_sends": 0,
+    "attachments": 0
+  },
+  "active_counts": {
+    "contacts": 118,
+    "leads": 70,
+    "opportunities": 99,
+    "vehicle_specifications": 71,
+    "message_templates": 64,
+    "message_sends": 69
+  }
+}

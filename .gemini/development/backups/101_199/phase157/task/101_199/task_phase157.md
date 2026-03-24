@@ -1,0 +1,21 @@
+# Phase 157: Comprehensive Unit Testing for D4 Features
+
+- [/] Research and Planning
+    - [ ] Read `docs/*.md` and `README.md` in all folders
+    - [ ] Identify all objects and their CRUD operations
+    - [ ] Map out "list view", "related", "ai recommend", and "send message" functionalities
+    - [ ] Create implementation plan
+- [ ] Test Implementation (Phase 157)
+    - [ ] Implement CRUD unit tests for all objects
+        - [ ] Basic CRUD
+        - [ ] Detail view
+        - [ ] Related tabs
+        - [ ] Edit via pencil button
+    - [ ] Implement List View unit tests
+    - [ ] Implement Related records unit tests
+    - [ ] Implement AI Recommend unit tests
+    - [ ] Implement Send Message unit tests
+- [ ] Verification
+    - [ ] Run all unit tests
+    - [ ] Ensure no manual testing is used
+    - [ ] Document results in walkthrough

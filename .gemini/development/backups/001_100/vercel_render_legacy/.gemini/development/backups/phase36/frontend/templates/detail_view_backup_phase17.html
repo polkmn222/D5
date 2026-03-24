@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}{{ record_name }} | {{ object_type }} - Salesforce{% endblock %}
+
+{% block content %}
+<div class="detail-header">
+    <div style="display: flex; gap: 1rem; align-items: center;">
+        <div class="detail-icon" style="background: {% if object_type == 'Lead' %}#49a5e1{% elif object_type == 'Account' %}#7f8de1{% elif object_type == 'Contact' %}#a094ed{% else %}#fcb95b{% endif %};">
+            {% if object_type == 'Lead' %}LQ{% elif object_type == 'Account' %}A{% elif object_type == 'Contact' %}C{% else %}O{% endif %}
+        </div>
+        <div>
+            <nav style="font-size: 0.75rem; color: var(--text-label);">{{ object_type }}</nav>
+            <h1 style="font-size: 1.25rem; font-weight: 700;">{{ record_name }}</h1>
+        </div>
+    </div>
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+        {% if object_type in ['Lead', 'Opportunity'] %}
+        <button id="follow-btn" class="btn {% if is_followed %}btn-primary{% endif %}" onclick="toggleFollow('{{plural_type}}', '{{record_id}}', {{ 'true' if is_followed else 'false' }})">
+            Follow
+        </button>
+        {% endif %}
+        <button class="btn" onclick="openModal('/{{ plural_type }}/new-modal?id={{ record_id }}')">Edit</button>
+        <button type="button" class="btn" style="color: var(--error);" onclick="confirmDelete('{{object_type}}', '{{record_id}}', '{{record_name}}', '{{plural_type}}')">Delete</button>
+    </div>
+</div>
+
+{% if path %}
+<div class="sf-path-container" style="display: flex; align-items: center; background: #f3f3f3; padding: 0.5rem 1rem; gap: 0.5rem;">
+    <div class="sf-path" style="flex-grow: 1;">
+        {% for step in path %}
+        <div class="sf-path-item {% if step.active %}active{% elif step.completed %}completed{% endif %}" 
+             onclick="updateStage(this, '{{plural_type}}', '{{record_id}}', '{{step.label}}')">
+            {{ step.label }}
+        </div>
+        {% endfor %}
+    </div>
+    <button class="btn btn-primary" style="border-radius: 20px;">Mark Status as Complete</button>
+</div>
+{% endif %}
+
+<div class="detail-tabs" style="margin-top: 0.5rem;">
+    <div class="detail-tab active" onclick="switchTab('details')">Details</div>
+    <div class="detail-tab" onclick="switchTab('related')">Related</div>
+    <div class="detail-tab" onclick="switchTab('activity')">Activity</div>
+</div>
+
+<div id="tab-details" class="sf-card" style="margin: 1.5rem; display: block; padding: 1.5rem 2.5rem;">
+    <div class="field-grid">
+        {% for field, value in details.items() %}
+        {% if field != 'Description' %}
+        <div class="sf-field-item">
+            <div style="flex-grow: 1;">
+                <div class="sf-field-label">{{ field.replace('_', ' ')|capitalize }}</div>
+                
+                <!-- Display Mode -->
+                <div id="value-{{ field }}" class="sf-editable-field" onclick="toggleInlineEdit('{{ field }}', '{{ plural_type }}', '{{ record_id }}', '{{ field }}')">
+                    <span id="text-{{ field }}">{{ value if value is not none else 'N/A' }}</span>
+                    <span class="sf-pencil-icon">✏️</span>
+                </div>
+
+                <!-- Edit Mode -->
+                <div id="edit-{{ field }}" style="display: none;">
+                    <input type="text" id="input-{{ field }}" class="sf-inline-input" value="{{ value if value is not none else '' }}">
+                    <div class="sf-inline-actions">
+                        <button class="btn-inline-cancel" onclick="toggleInlineEdit('{{ field }}')">Cancel</button>
+                        <button class="btn-inline-save" onclick="saveInlineEdit('{{ field }}', '{{ plural_type }}', '{{ record_id }}', '{{ field }}')">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+
+        <!-- Followed Status Field (New) -->
+        {% if object_type in ['Lead', 'Opportunity'] %}
+        <div class="sf-field-item">
+            <div>
+                <div class="sf-field-label">Followed</div>
+                <div class="sf-field-value">
+                    <input type="checkbox" disabled {% if is_followed %}checked{% endif %}>
+                    <span style="margin-left: 0.5rem;">{{ 'Yes' if is_followed else 'No' }}</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Full-width Description -->
+        <div class="sf-description-large">
+            <div class="sf-field-label">Description</div>
+            <div id="value-description" class="sf-editable-field" onclick="toggleInlineEdit('description', '{{ plural_type }}', '{{ record_id }}', 'Description')">
+                <span id="text-description" style="line-height: 1.5;">{{ details.get('Description', 'N/A') }}</span>
+                <span class="sf-pencil-icon">✏️</span>
+            </div>
+            <div id="edit-description" style="display: none;">
+                <textarea id="input-description" class="sf-inline-input" style="height: 100px;">{{ details.get('Description', '') }}</textarea>
+                <div class="sf-inline-actions">
+                    <button class="btn-inline-cancel" onclick="toggleInlineEdit('description')">Cancel</button>
+                    <button class="btn-inline-save" onclick="saveInlineEdit('description', '{{ plural_type }}', '{{ record_id }}', 'Description')">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Info Section -->
+    <div class="sf-system-info">
+        <div>
+            <div class="sf-field-label">Created By</div>
+            <div class="sf-system-user">
+                <img src="https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y" class="sf-user-avatar">
+                <span style="color: var(--nav-blue); cursor: pointer;">admin</span>, 
+                {{ created_at.strftime("%Y. %-m. %-d. %p %I:%M") if created_at else "N/A" }}
+            </div>
+        </div>
+        <div>
+            <div class="sf-field-label">Last Modified By</div>
+            <div class="sf-system-user">
+                <img src="https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y" class="sf-user-avatar">
+                <span style="color: var(--nav-blue); cursor: pointer;">admin</span>, 
+                {{ updated_at.strftime("%Y. %-m. %-d. %p %I:%M") if updated_at else "N/A" }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-related" class="sf-card" style="margin: 1.5rem; display: none;">
+    <h3 style="font-size: 1rem; margin-bottom: 1rem; padding: 1rem;">Related Lists</h3>
+    {% if related_lists %}
+        {% for list in related_lists %}
+        <div style="margin-bottom: 2rem; border: 1px solid var(--border); border-radius: 4px; overflow: hidden;">
+            <div class="sf-card-header" style="background: #f3f3f3; padding: 0.5rem 1rem; margin-bottom: 0;">
+                <span>{{ list.title }} ({{ list.items|length }})</span>
+                <button class="btn">New</button>
+            </div>
+            <table class="sf-table">
+                <thead>
+                    <tr>
+                        {% for col in list.columns %}
+                        <th>{{ col|upper }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in list.items %}
+                    <tr>
+                        {% for col in list.columns %}
+                        <td>{{ item[col.lower()] }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p style="color: var(--text-label); font-size: 0.875rem; padding: 1rem;">No related records found.</p>
+    {% endif %}
+</div>
+
+<div id="tab-activity" class="sf-card" style="margin: 1.5rem; display: none; padding: 1rem;">
+    <p style="color: var(--text-label); font-size: 0.875rem;">Activity Timeline Placeholder</p>
+</div>
+
+<script>
+    function switchTab(tabName) {
+        document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.sf-card').forEach(c => {
+            if (c.id.startsWith('tab-')) c.style.display = 'none';
+        });
+        
+        event.currentTarget.classList.add('active');
+        document.getElementById('tab-' + tabName).style.display = 'block';
+    }
+
+    async function updateStage(el, type, id, stage) {
+        const formData = new FormData();
+        formData.append('stage', stage);
+        
+        const response = await fetch(`/${type}/${id}/stage`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            // Quick refresh or local UI update
+            window.location.reload();
+        }
+    }
+
+    async function toggleFollow(type, id, currentState) {
+        const newState = !currentState;
+        const formData = new FormData();
+        formData.append('enabled', newState);
+        
+        const response = await fetch(`/${type}/${id}/toggle-follow`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            showToast(newState ? "Following record" : "Unfollowed record");
+            setTimeout(() => window.location.reload(), 1000);
+        }
+    }
+</script>
+{% endblock %}

@@ -1,115 +1,687 @@
 let isAiAgentMinimized = false;
 let isAiAgentMaximized = false;
 let agentTableStyle = 'default';
+let aiAgentConversationId = createConversationId();
+let aiAgentSelectionState = {};
+let aiAgentSelectionMeta = {};
+let aiAgentActiveSelectionObject = null;
+let aiAgentActiveSelectionContainer = null;
+let localAgentResultTables = {};
+let aiAgentLanguagePreference = localStorage.getItem('aiAgentLanguagePreference') || 'eng';
+const AI_AGENT_DEFAULT_BODY_HTML = `
+    <div style="text-align: center; color: #706e6b; font-size: 0.75rem; margin-bottom: 20px; font-weight: 500;">CONVERSATION STARTED</div>
+    <div class="msg-agent">
+        <div class="msg-agent-header">
+            <div class="msg-agent-icon">🤖</div>
+            <span style="font-size: 0.8rem; font-weight: 700; color: #3e3e3c;">AI AGENT</span>
+        </div>
+        <div class="msg-agent-content">
+            <div class="msg-agent-text">Hello! I'm your AI Agent. I can help you manage <strong>Leads</strong>, <strong>Contacts</strong>, <strong>Opportunities</strong>, <strong>Products</strong>, and more with natural English commands.</div>
+            <div class="agent-welcome-tips">
+                <button class="welcome-tip" onclick="sendQuickMessage('create lead')">Create a lead</button>
+                <button class="welcome-tip" onclick="sendQuickMessage('show all contacts')">Browse contacts</button>
+                <button class="welcome-tip" onclick="sendQuickMessage('show the lead I just created')">Open last created record</button>
+            </div>
+        </div>
+    </div>
+    <div id="ai-agent-selection-bar" class="selection-bar is-hidden">
+        <div class="selection-bar-copy">
+            <span class="selection-bar-title">Selection Ready</span>
+            <span id="ai-agent-selection-summary">No records selected</span>
+            <span id="ai-agent-selection-detail" class="selection-bar-detail">Select one or more records, then choose Open, Edit, Delete, or Send Message.</span>
+        </div>
+        <div class="selection-bar-actions">
+            <button class="selection-action-btn" onclick="triggerSelectionOpen()">Open</button>
+            <button class="selection-action-btn" onclick="triggerSelectionEdit()">Edit</button>
+            <button class="selection-action-btn selection-action-danger" onclick="triggerSelectionDelete()">Delete</button>
+            <button class="selection-action-btn selection-action-primary" onclick="triggerSelectionMessaging()">Send Message</button>
+        </div>
+    </div>
+`;
 
-function toggleAiAgent() {
-    const win = document.getElementById('ai-agent-window');
-    if (win.style.display === 'none' || win.style.display === '') {
-        win.style.display = 'flex';
-        if (!isAiAgentMinimized) {
-            win.style.height = isAiAgentMaximized ? '100%' : '700px';
+const AGENT_TABLE_SCHEMAS = {
+    lead: ['display_name', 'phone', 'email', 'status', 'created_at'],
+    contact: ['display_name', 'phone', 'email', 'tier', 'last_interaction_at'],
+    opportunity: ['name', 'stage', 'temperature', 'amount', 'is_followed', 'updated_at'],
+    product: ['name', 'brand', 'model', 'category', 'base_price'],
+    asset: ['name', 'vin', 'status', 'brand', 'model'],
+    brand: ['name', 'record_type', 'description'],
+    model: ['name', 'brand', 'description'],
+    message_template: ['name', 'record_type', 'subject', 'content', 'image_url'],
+    message_send: ['contact', 'direction', 'status', 'sent_at'],
+};
+
+const AGENT_TABLE_LABELS = {
+    display_name: 'Name',
+    first_name: 'First Name',
+    last_name: 'Last Name',
+    phone: 'Phone',
+    email: 'Email',
+    status: 'Status',
+    is_followed: 'Followed',
+    tier: 'Tier',
+    last_interaction_at: 'Last Interaction',
+    name: 'Name',
+    stage: 'Stage',
+    temperature: 'Temperature',
+    amount: 'Amount',
+    close_date: 'Close Date',
+    updated_at: 'Updated',
+    brand: 'Brand',
+    model: 'Model',
+    category: 'Category',
+    base_price: 'Base Price',
+    vin: 'VIN',
+    purchase_date: 'Purchase Date',
+    record_type: 'Type',
+    content: 'Content',
+    image_url: 'Image',
+    contact: 'Contact',
+    direction: 'Direction',
+    sent_at: 'Sent At',
+};
+
+function getAgentFieldValue(row, key) {
+    if (key === 'display_name') {
+        return [row.first_name, row.last_name].filter(Boolean).join(' ').trim() || row.name || '-';
+    }
+    return row[key] ?? '-';
+}
+
+function formatAgentFieldValue(key, value) {
+    if (value === null || value === undefined || value === '') return '-';
+    if (key === 'is_followed') return value ? 'Yes' : 'No';
+    if (['amount', 'base_price'].includes(key)) {
+        const number = Number(value);
+        return Number.isFinite(number) ? `₩ ${number.toLocaleString()}` : value;
+    }
+    if (['created_at', 'updated_at', 'close_date', 'last_interaction_at', 'sent_at', 'purchase_date'].includes(key)) {
+        return String(value).slice(0, 10);
+    }
+    if (key === 'content') {
+        const text = String(value);
+        return text.length > 80 ? `${text.slice(0, 77)}...` : text;
+    }
+    return value;
+}
+
+function getAiAgentUiCopy() {
+    if (aiAgentLanguagePreference === 'kor') {
+        return {
+            trigger: 'AI Agent 열기',
+            subtitle: '레코드 조회, 후속 관리, 메시지 전송을 돕는 CRM 도우미입니다.',
+            reset: '대화 초기화',
+            kicker: 'AI 빠른 가이드',
+            guideTitle: '원하는 작업부터 시작하세요',
+            guideCopy: '직접적인 CRM 작업을 고른 뒤, 채팅에서 다음 단계를 이어가세요.',
+            browseTitle: '레코드 조회',
+            allLeads: '전체 리드',
+            allLeadsCopy: '최신 리드 목록 열기',
+            allContacts: '전체 연락처',
+            allContactsCopy: '연락처 레코드 확인',
+            allOpps: '전체 기회',
+            allOppsCopy: '현재 파이프라인 보기',
+            recentOpps: '최근 기회',
+            recentOppsCopy: '최근 업데이트 딜 확인',
+            actionsTitle: 'AI 작업',
+            recommend: 'AI Recommend',
+            recommendCopy: '추천 기회 보기',
+            changeRecommend: '추천 로직 변경',
+            changeRecommendCopy: '홈 카드 추천 기준 바꾸기',
+            sendMessage: '메시지 보내기',
+            sendMessageCopy: '선택한 레코드로 메시지 흐름 열기',
+            topDeals: '상위 딜',
+            topDealsCopy: '핵심 기회 보기',
+            myLeads: '내 리드',
+            myLeadsCopy: '개인 리드 빠르게 보기',
+            examples: '예시',
+            examplesCopy: '`리드 생성해줘` · `전체 연락처 보여줘` · `방금 만든 리드 열어줘` · `그 연락처 삭제해줘`',
+            welcome: "안녕하세요! 저는 AI Agent입니다. 자연어로 <strong>리드</strong>, <strong>연락처</strong>, <strong>기회</strong>, <strong>상품</strong> 등을 도와드릴게요.",
+            createLead: "리드 만들기",
+            browseContacts: "연락처 보기",
+            openLast: "최근 생성 레코드 열기",
+            inputPlaceholder: "메시지나 명령을 입력하세요...",
+            sendMessageGuide: "누구에게 메시지를 보낼까요? 최근 생성된 리드, 전체 연락처, 최근 생성된 연락처를 먼저 불러오고 레코드를 선택해 주세요.",
+            languageToast: "AI Agent language set to Korean.",
+            selectionTitle: '선택 준비됨',
+            open: '열기',
+            edit: '수정',
+            delete: '삭제',
+            send: '메시지 보내기',
+        };
+    }
+
+    return {
+        trigger: 'Ask AI Agent',
+        subtitle: 'English-first CRM copilot for records, follow-ups, and messaging.',
+        reset: 'Reset Agent',
+        kicker: 'AI Quick Guide',
+        guideTitle: 'Start with a clear task',
+        guideCopy: 'Start with a direct CRM task, then refine the next step in chat.',
+        browseTitle: 'Browse Records',
+        allLeads: 'All Leads',
+        allLeadsCopy: 'Open the latest lead list',
+        allContacts: 'All Contacts',
+        allContactsCopy: 'Review contact records',
+        allOpps: 'All Opportunities',
+        allOppsCopy: 'See current pipeline items',
+        recentOpps: 'Recent Opps',
+        recentOppsCopy: 'Check newly updated deals',
+        actionsTitle: 'Agent Actions',
+        recommend: 'AI Recommend',
+        recommendCopy: 'Surface recommended deals',
+        changeRecommend: 'Change AI Recommend',
+        changeRecommendCopy: 'Change the recommendation logic for the home card',
+        sendMessage: 'Send Message',
+        sendMessageCopy: 'Open the messaging flow for selected records',
+        topDeals: 'Top Deals',
+        topDealsCopy: 'Ask for top-value opportunities',
+        myLeads: 'My Leads',
+        myLeadsCopy: 'Get a quick personal list',
+        examples: 'Examples',
+        examplesCopy: '`create lead` · `show all contacts` · `show the lead I just created` · `delete that contact`',
+        welcome: "Hello! I'm your AI Agent. I can help you manage <strong>Leads</strong>, <strong>Contacts</strong>, <strong>Opportunities</strong>, <strong>Products</strong>, and more with natural English commands.",
+        createLead: "Create a lead",
+        browseContacts: "Browse contacts",
+        openLast: "Open last created record",
+        inputPlaceholder: "Type a message or command...",
+        sendMessageGuide: "Who should I send the message to? Try showing recent leads, all contacts, or recently created leads first, then select one or more records.",
+        languageToast: "AI Agent language set to English.",
+        selectionTitle: 'Selection Ready',
+        open: 'Open',
+        edit: 'Edit',
+        delete: 'Delete',
+        send: 'Send Message',
+    };
+}
+
+function applyAiAgentLanguageUi() {
+    const copy = getAiAgentUiCopy();
+    const input = document.getElementById('ai-agent-input');
+    if (input) input.setAttribute('placeholder', copy.inputPlaceholder);
+
+    const setText = (selector, value) => {
+        const node = document.querySelector(selector);
+        if (node) node.textContent = value;
+    };
+    const setHtml = (selector, value) => {
+        const node = document.querySelector(selector);
+        if (node) node.innerHTML = value;
+    };
+
+    setText('[data-ai-agent-trigger-label]', copy.trigger);
+    setText('[data-ai-agent-subtitle]', copy.subtitle);
+    setText('[data-ai-agent-reset-label]', copy.reset);
+    setText('[data-ai-guide-kicker]', copy.kicker);
+    setText('[data-ai-guide-title]', copy.guideTitle);
+    setText('[data-ai-guide-copy]', copy.guideCopy);
+    setText('[data-ai-guide-section-browse]', copy.browseTitle);
+    setText('[data-ai-guide-all-leads]', copy.allLeads);
+    setText('[data-ai-guide-all-leads-copy]', copy.allLeadsCopy);
+    setText('[data-ai-guide-all-contacts]', copy.allContacts);
+    setText('[data-ai-guide-all-contacts-copy]', copy.allContactsCopy);
+    setText('[data-ai-guide-all-opps]', copy.allOpps);
+    setText('[data-ai-guide-all-opps-copy]', copy.allOppsCopy);
+    setText('[data-ai-guide-recent-opps]', copy.recentOpps);
+    setText('[data-ai-guide-recent-opps-copy]', copy.recentOppsCopy);
+    setText('[data-ai-guide-section-actions]', copy.actionsTitle);
+    setText('[data-ai-guide-recommend]', copy.recommend);
+    setText('[data-ai-guide-recommend-copy]', copy.recommendCopy);
+    setText('[data-ai-guide-change-recommend]', copy.changeRecommend);
+    setText('[data-ai-guide-change-recommend-copy]', copy.changeRecommendCopy);
+    setText('[data-ai-guide-send-message]', copy.sendMessage);
+    setText('[data-ai-guide-send-message-copy]', copy.sendMessageCopy);
+    setText('[data-ai-guide-top-deals]', copy.topDeals);
+    setText('[data-ai-guide-top-deals-copy]', copy.topDealsCopy);
+    setText('[data-ai-guide-my-leads]', copy.myLeads);
+    setText('[data-ai-guide-my-leads-copy]', copy.myLeadsCopy);
+    setText('[data-ai-guide-examples]', copy.examples);
+    setText('[data-ai-guide-examples-copy]', copy.examplesCopy);
+    setText('[data-ai-selection-title]', copy.selectionTitle);
+    setText('[data-ai-selection-open]', copy.open);
+    setText('[data-ai-selection-edit]', copy.edit);
+    setText('[data-ai-selection-delete]', copy.delete);
+    setText('[data-ai-selection-send]', copy.send);
+
+    const welcome = document.querySelector('.msg-agent .msg-agent-text');
+    if (welcome) welcome.innerHTML = copy.welcome;
+
+    const tips = document.querySelectorAll('.agent-welcome-tips .welcome-tip');
+    if (tips[0]) tips[0].textContent = copy.createLead;
+    if (tips[1]) tips[1].textContent = copy.browseContacts;
+    if (tips[2]) tips[2].textContent = copy.openLast;
+
+    document.getElementById('ai-agent-lang-eng')?.classList.toggle('is-active', aiAgentLanguagePreference === 'eng');
+    document.getElementById('ai-agent-lang-kor')?.classList.toggle('is-active', aiAgentLanguagePreference === 'kor');
+}
+
+function setAiAgentLanguage(lang) {
+    aiAgentLanguagePreference = lang === 'kor' ? 'kor' : 'eng';
+    localStorage.setItem('aiAgentLanguagePreference', aiAgentLanguagePreference);
+    applyAiAgentLanguageUi();
+    if (typeof showToast === 'function') showToast(getAiAgentUiCopy().languageToast);
+}
+
+function normalizeObjectLabel(objectType, count) {
+    if (!objectType) return 'records';
+    const label = objectType.replace('_', ' ');
+    return count === 1 ? label : `${label}s`;
+}
+
+function ensureSelectionMeta(objectType) {
+    if (!objectType) return null;
+    if (!aiAgentSelectionMeta[objectType]) {
+        aiAgentSelectionMeta[objectType] = new Map();
+    }
+    return aiAgentSelectionMeta[objectType];
+}
+
+function summarizeSelectionIds(ids) {
+    if (!ids || !ids.length) return "Select one or more records, then choose Open, Edit, Delete, or Send Message.";
+    const preview = ids.slice(0, 3).join(', ');
+    if (ids.length <= 3) {
+        return `Selected IDs: ${preview}`;
+    }
+    return `Selected IDs: ${preview} +${ids.length - 3} more`;
+}
+
+function updateSelectionBar() {
+    const bar = document.getElementById('ai-agent-selection-bar');
+    const summary = document.getElementById('ai-agent-selection-summary');
+    const detail = document.getElementById('ai-agent-selection-detail');
+    if (!bar || !summary || !detail) return;
+
+    const selection = buildSelectionPayload();
+    if (!selection) {
+        bar.classList.add('is-hidden');
+        summary.textContent = 'No records selected';
+        detail.textContent = "Select one or more records, then choose Open, Edit, Delete, or Send Message.";
+        return;
+    }
+
+    if (aiAgentActiveSelectionContainer) {
+        const pagination = aiAgentActiveSelectionContainer.querySelector('.agent-pagination');
+        if (pagination && pagination.parentNode === aiAgentActiveSelectionContainer) {
+            aiAgentActiveSelectionContainer.insertBefore(bar, pagination);
+        } else {
+            aiAgentActiveSelectionContainer.appendChild(bar);
         }
-    } else {
-        win.style.display = 'none';
+    }
+
+    const count = selection.ids.length;
+    const label = normalizeObjectLabel(selection.object_type, count);
+    const names = selection.labels || [];
+    summary.textContent = count === 1
+        ? (names[0] || `${label} selected`)
+        : `${count} ${label} selected${names.length ? ` · ${names.slice(0, 2).join(', ')}` : ''}`;
+    detail.textContent = count === 1
+        ? `Choose what to do with ${names[0] || 'this record'}: Open, Edit, Delete, or Send Message.`
+        : `Choose what to do with these ${count} ${label}: Delete or Send Message.`;
+
+    const openBtn = bar.querySelector('[data-ai-selection-open]');
+    const editBtn = bar.querySelector('[data-ai-selection-edit]');
+    const sendBtn = bar.querySelector('[data-ai-selection-send]');
+    if (openBtn) openBtn.disabled = count < 1;
+    if (editBtn) editBtn.disabled = count < 1;
+    if (sendBtn) sendBtn.disabled = false;
+    bar.classList.remove('is-hidden');
+}
+
+function extractAgentWorkspaceMarkup(doc, url) {
+    if (url.includes('/messaging/ui')) {
+        return doc.querySelector('#messaging-main-view')?.outerHTML || doc.body.innerHTML;
+    }
+    if (url.includes('/new-modal')) {
+        const wrapper = document.createElement('div');
+        ['.sf-modal-header', '.sf-modal-body', '.sf-modal-footer'].forEach(selector => {
+            const node = doc.querySelector(selector);
+            if (node) wrapper.appendChild(node);
+        });
+        return wrapper.innerHTML || doc.body.innerHTML;
+    }
+
+    const wrapper = document.createElement('div');
+    ['.detail-header', '.detail-tabs', '#tab-details', '#tab-related'].forEach(selector => {
+        const node = doc.querySelector(selector);
+        if (node) wrapper.appendChild(node);
+    });
+    return wrapper.innerHTML || doc.body.innerHTML;
+}
+
+function wireAgentWorkspaceInteractions(content, sourceUrl) {
+    if (!content) return;
+    if (typeof enhanceModalForms === 'function' && sourceUrl.includes('/new-modal')) {
+        content.dataset.modalSourceUrl = sourceUrl;
+        enhanceModalForms(content);
+    }
+
+    content.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', () => {
+            const loading = document.getElementById('ai-agent-workspace-loading');
+            if (loading) loading.classList.remove('agent-hidden');
+        }, { once: true });
+    });
+
+    content.querySelectorAll('script').forEach(script => {
+        const replacement = document.createElement('script');
+        replacement.textContent = script.textContent;
+        document.body.appendChild(replacement);
+        replacement.remove();
+    });
+
+    content.querySelectorAll('.detail-header .btn, .sf-modal-header .btn').forEach(btn => {
+        const text = btn.textContent?.trim().toLowerCase();
+        if (text === 'delete') {
+            btn.addEventListener('click', event => event.preventDefault());
+        }
+    });
+}
+
+function triggerWorkspaceEdit() {
+    const ws = document.getElementById('ai-agent-workspace');
+    const url = ws?.dataset?.editUrl;
+    const title = ws?.dataset?.recordTitle;
+    if (url) openAgentWorkspace(url, `Edit ${title || 'Record'}`);
+}
+
+function triggerWorkspaceDelete() {
+    const ws = document.getElementById('ai-agent-workspace');
+    const type = ws?.dataset?.objectType;
+    const id = ws?.dataset?.recordId;
+    const title = ws?.dataset?.recordTitle;
+    if (type && id) {
+        sendAiMessageWithDisplay(`Delete ${title}`, `Delete ${type} ${id}`);
+        closeAgentWorkspace();
     }
 }
 
-function resetAiAgent() {
+function openAgentWorkspace(url, title) {
+    const panel = document.getElementById('ai-agent-workspace');
+    const content = document.getElementById('ai-agent-workspace-content');
+    const loading = document.getElementById('ai-agent-workspace-loading');
+    const heading = document.getElementById('ai-agent-workspace-title');
+    const editBtn = document.getElementById('ai-agent-workspace-edit-btn');
+    const deleteBtn = document.getElementById('ai-agent-workspace-delete-btn');
+    
+    if (!panel || !content || !loading || !heading || !url) return;
+
+    heading.textContent = title || 'Record View';
+    panel.classList.remove('agent-hidden');
+    loading.classList.remove('agent-hidden');
+    content.innerHTML = '';
+    
+    // Hide buttons initially
+    if (editBtn) editBtn.style.display = 'none';
+    if (deleteBtn) deleteBtn.style.display = 'none';
+
+    fetch(url)
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const extracted = extractAgentWorkspaceMarkup(doc, url);
+            content.innerHTML = extracted;
+            wireAgentWorkspaceInteractions(content, url);
+            
+            // Try to extract object type and ID from URL for the workspace buttons
+            // Format is usually /<plural_type>/<id>
+            const match = url.match(/^\/([a-z_]+)\/([a-zA-Z0-9_\-]+)/);
+            if (match && !url.includes('new-modal') && !url.includes('messaging')) {
+                const pluralType = match[1];
+                const recordId = match[2];
+                // Map plural type to singular objectType
+                const typeMap = {
+                    'leads': 'lead', 'contacts': 'contact', 'opportunities': 'opportunity',
+                    'products': 'product', 'assets': 'asset', 'models': 'model',
+                    'vehicle_specifications': 'brand' // approximate
+                };
+                const objectType = typeMap[pluralType];
+                
+                if (objectType && recordId) {
+                    panel.dataset.objectType = objectType;
+                    panel.dataset.recordId = recordId;
+                    panel.dataset.recordTitle = title;
+                    
+                    const editUrl = getAgentObjectRoute(objectType, recordId, 'edit');
+                    if (editUrl) {
+                        panel.dataset.editUrl = editUrl;
+                        if (editBtn) editBtn.style.display = 'inline-block';
+                    }
+                    if (deleteBtn) deleteBtn.style.display = 'inline-block';
+                }
+            }
+        })
+        .catch(error => {
+            console.error(error);
+            content.innerHTML = '<div class="sf-card" style="padding:1rem;color:var(--error);">Unable to load this record inside AI Agent.</div>';
+        })
+        .finally(() => {
+            loading.classList.add('agent-hidden');
+        });
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function openAgentWorkspaceHtml(title, html) {
+    const panel = document.getElementById('ai-agent-workspace');
+    const content = document.getElementById('ai-agent-workspace-content');
+    const loading = document.getElementById('ai-agent-workspace-loading');
+    const heading = document.getElementById('ai-agent-workspace-title');
+    if (!panel || !content || !loading || !heading) return;
+    heading.textContent = title || 'Record View';
+    panel.classList.remove('agent-hidden');
+    loading.classList.add('agent-hidden');
+    content.innerHTML = html;
+    wireAgentWorkspaceInteractions(content, 'inline-html');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeAgentWorkspace() {
+    const panel = document.getElementById('ai-agent-workspace');
+    const content = document.getElementById('ai-agent-workspace-content');
+    const loading = document.getElementById('ai-agent-workspace-loading');
+    if (panel) panel.classList.add('agent-hidden');
+    if (content) content.innerHTML = '';
+    if (loading) loading.classList.add('agent-hidden');
+}
+
+function openAgentImagePreview(url, title = 'Template Image') {
+    const modal = document.getElementById('ai-agent-image-modal');
+    const image = document.getElementById('ai-agent-image-preview');
+    const heading = document.getElementById('ai-agent-image-title');
+    const fallback = document.getElementById('ai-agent-image-fallback');
+    if (!modal || !image || !heading || !fallback || !url) return;
+    fallback.style.display = 'none';
+    image.style.display = 'block';
+    image.onerror = () => {
+        image.style.display = 'none';
+        fallback.style.display = 'flex';
+    };
+    image.onload = () => {
+        image.style.display = 'block';
+        fallback.style.display = 'none';
+    };
+    image.src = url;
+    heading.textContent = title;
+    modal.classList.remove('agent-hidden');
+}
+
+function closeAgentImagePreview() {
+    const modal = document.getElementById('ai-agent-image-modal');
+    const image = document.getElementById('ai-agent-image-preview');
+    const fallback = document.getElementById('ai-agent-image-fallback');
+    if (!modal || !image || !fallback) return;
+    modal.classList.add('agent-hidden');
+    image.src = '';
+    image.style.display = 'block';
+    fallback.style.display = 'none';
+}
+
+function startTemplateSendFromAgent(templateId) {
+    if (!templateId) return;
+    sessionStorage.setItem('aiAgentMessageTemplate', templateId);
+    appendChatMessage('agent', `Template prepared for Send Message. I'll open the messaging screen with template \`${templateId}\` ready.`);
+    openAgentWorkspace('/messaging/ui?sourceObject=message_template', 'Send Message');
+}
+
+function createConversationId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return window.crypto.randomUUID();
+    }
+    return `conv-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+async function ensureAiAgentPanelLoaded() {
+    if (document.getElementById('ai-agent-window')) return true;
+    const root = document.getElementById('ai-agent-root');
+    if (!root) return false;
+    root.innerHTML = '<div class="sf-card" style="padding:1rem;text-align:center;color:#5b708b;">Loading AI Agent...</div>';
+    try {
+        const response = await fetch('/ai-agent-panel');
+        const html = await response.text();
+        if (!response.ok) throw new Error('Failed to load AI Agent panel.');
+        root.innerHTML = html;
+        applyAiAgentLanguageUi();
+        return true;
+    } catch (error) {
+        console.error(error);
+        root.innerHTML = '<div class="sf-card" style="padding:1rem;text-align:center;color:var(--error);">Unable to load AI Agent right now.</div>';
+        return false;
+    }
+}
+
+async function toggleAiAgent() {
+    const loaded = await ensureAiAgentPanelLoaded();
+    if (!loaded) return;
     const win = document.getElementById('ai-agent-window');
-    const body = document.getElementById('ai-agent-body');
-    
-    body.innerHTML = `
-        <div style="text-align: center; color: #706e6b; font-size: 0.75rem; margin-bottom: 20px; font-weight: 500;">SESSION RESTARTED</div>
-        <div class="msg-agent">
-            <div class="msg-agent-header">
-                <div class="msg-agent-icon">🤖</div>
-                <span style="font-size: 0.8rem; font-weight: 700; color: #3e3e3c;">AI AGENT</span>
-            </div>
-            <div class="msg-agent-content">
-                <div class="msg-agent-text">Hello! I'm your AI Agent. I've been reset and I'm ready to help you again.</div>
-            </div>
-        </div>
-    `;
-    
+    if (!win) return;
+    if (win.classList.contains('agent-hidden')) {
+        win.classList.remove('agent-hidden');
+        syncAiAgentWindowState();
+        return;
+    }
+    closeAiAgent();
+}
+
+function syncAiAgentWindowState() {
+    const win = document.getElementById('ai-agent-window');
+    const minimizeBtn = document.getElementById('ai-agent-minimize-btn');
+    const maximizeBtn = document.getElementById('ai-agent-maximize-btn');
+    if (!win) return;
+
+    win.classList.toggle('agent-minimized', isAiAgentMinimized);
+    win.classList.toggle('agent-maximized', isAiAgentMaximized);
+
+    if (minimizeBtn) {
+        minimizeBtn.innerHTML = isAiAgentMinimized ? '&#9723;' : '&minus;';
+        minimizeBtn.setAttribute('aria-label', isAiAgentMinimized ? 'Restore AI Agent' : 'Minimize AI Agent');
+        minimizeBtn.setAttribute('title', isAiAgentMinimized ? 'Restore AI Agent' : 'Minimize AI Agent');
+    }
+
+    if (maximizeBtn) {
+        maximizeBtn.textContent = isAiAgentMaximized ? '🗗' : '⛶';
+        maximizeBtn.setAttribute('aria-label', isAiAgentMaximized ? 'Restore AI Agent size' : 'Maximize AI Agent');
+        maximizeBtn.setAttribute('title', isAiAgentMaximized ? 'Restore AI Agent size' : 'Maximize AI Agent');
+    }
+}
+
+function closeAiAgent() {
+    const win = document.getElementById('ai-agent-window');
+    if (!win) return;
+
     isAiAgentMinimized = false;
     isAiAgentMaximized = false;
-    win.style.display = 'none';
-    win.style.width = '950px';
-    win.style.height = '700px';
-    win.style.bottom = '24px';
-    win.style.right = '24px';
-    win.style.borderRadius = '12px';
-    
-    const container = document.querySelector('.ai-agent-main-container');
-    const footer = document.getElementById('ai-agent-footer');
-    container.style.display = 'flex';
-    footer.style.display = 'flex';
+    win.classList.add('agent-hidden');
+    syncAiAgentWindowState();
+}
+
+async function resetAiAgent() {
+    const body = document.getElementById('ai-agent-body');
+    const input = document.getElementById('ai-agent-input');
+
+    try {
+        await fetch('/ai-agent/api/reset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ conversation_id: aiAgentConversationId })
+        });
+    } catch (error) {
+        console.error('AI Agent reset error:', error);
+    }
+
+    body.innerHTML = AI_AGENT_DEFAULT_BODY_HTML;
+    if (input) input.value = '';
+
+    aiAgentConversationId = createConversationId();
+    aiAgentSelectionState = {};
+    aiAgentActiveSelectionObject = null;
+    sessionStorage.removeItem('aiAgentMessageSelection');
+    applyAiAgentLanguageUi();
+    updateSelectionBar();
 }
 
 function minimizeAiAgent() {
     const win = document.getElementById('ai-agent-window');
-    const container = document.querySelector('.ai-agent-main-container');
-    const footer = document.getElementById('ai-agent-footer');
-    
+    if (!win || win.classList.contains('agent-hidden')) return;
+
+    isAiAgentMinimized = !isAiAgentMinimized;
     if (isAiAgentMinimized) {
-        container.style.display = 'flex';
-        footer.style.display = 'flex';
-        win.style.height = isAiAgentMaximized ? '100%' : '700px';
-        isAiAgentMinimized = false;
-    } else {
-        container.style.display = 'none';
-        footer.style.display = 'none';
-        win.style.height = 'auto';
-        isAiAgentMinimized = true;
+        isAiAgentMaximized = false;
     }
+    syncAiAgentWindowState();
 }
 
 function maximizeAiAgent() {
     const win = document.getElementById('ai-agent-window');
+    if (!win || win.classList.contains('agent-hidden')) return;
+
+    isAiAgentMaximized = !isAiAgentMaximized;
     if (isAiAgentMaximized) {
-        win.style.width = '950px';
-        win.style.height = isAiAgentMinimized ? 'auto' : '700px';
-        win.style.bottom = '24px';
-        win.style.right = '24px';
-        win.style.borderRadius = '12px';
-        isAiAgentMaximized = false;
-    } else {
-        win.style.width = '100%';
-        win.style.height = isAiAgentMinimized ? 'auto' : '100%';
-        win.style.bottom = '0';
-        win.style.right = '0';
-        win.style.borderRadius = '0';
-        isAiAgentMaximized = true;
+        isAiAgentMinimized = false;
     }
+    syncAiAgentWindowState();
 }
 
-async function sendAiMessage() {
+async function fetchAiAgentResponse(query, pageOverride = 1) {
+    const response = await fetch('/ai-agent/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            query,
+            conversation_id: aiAgentConversationId,
+            page: pageOverride,
+            per_page: 50,
+            selection: buildSelectionPayload(),
+            language_preference: aiAgentLanguagePreference,
+        })
+    });
+    return response.json();
+}
+
+async function sendAiMessage(queryOverride = null, pageOverride = 1) {
     const input = document.getElementById('ai-agent-input');
-    const query = input.value.trim();
+    const query = (queryOverride ?? input.value).trim();
     if (!query) return;
 
-    appendChatMessage('user', query);
-    input.value = '';
+    if (!queryOverride) {
+        appendChatMessage('user', query);
+        input.value = '';
+    }
 
     const loadingId = 'loading-' + Date.now();
     appendChatMessage('agent', '<span class="loading-dots">Thinking</span>', loadingId);
 
     try {
-        const response = await fetch('/ai-agent/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: query })
-        });
-        const data = await response.json();
+        const data = await fetchAiAgentResponse(query, pageOverride);
         
         const loadingIndicator = document.getElementById(loadingId);
         if (loadingIndicator) loadingIndicator.remove();
 
         // Handle UI modification intent
-        if (data.intent === 'MODIFY_UI' || (data.text && (data.text.includes('table format') || data.text.includes('테이블 형식')))) {
-            if (data.text.includes('compact') || data.text.includes('축소')) agentTableStyle = 'compact';
-            else if (data.text.includes('modern') || data.text.includes('모던')) agentTableStyle = 'modern';
-            else agentTableStyle = 'default';
+        if (data.intent === 'MODIFY_UI') {
+            const text = data.text.toLowerCase();
+            if (text.includes('compact') || text.includes('축소')) agentTableStyle = 'compact';
+            else if (text.includes('modern') || text.includes('모던')) agentTableStyle = 'modern';
+            else if (text.includes('default') || text.includes('기본') || text.includes('salesforce')) agentTableStyle = 'default';
             
             // Re-style current tables in the DOM
             document.querySelectorAll('.agent-table').forEach(t => {
@@ -117,8 +689,29 @@ async function sendAiMessage() {
             });
         }
 
+        // Handle Send Message intent
+        if (data.intent === 'SEND_MESSAGE') {
+            if (data.selection) {
+                sessionStorage.setItem('aiAgentMessageSelection', JSON.stringify(data.selection));
+            }
+            if (data.template_id) {
+                sessionStorage.setItem('aiAgentMessageTemplate', data.template_id);
+            } else {
+                sessionStorage.removeItem('aiAgentMessageTemplate');
+            }
+            if (data.redirect_url) {
+                openAgentWorkspace(data.redirect_url, 'Send Message');
+            }
+            return;
+        }
+
+        if (data.intent === 'OPEN_FORM' && data.form_url) {
+            appendAgentInlineFormMessage(data.text || 'I opened the form here in chat.', data.form_url, data.form_title || 'Form');
+            return;
+        }
+
         if (data.text) {
-            appendChatMessage('agent', data.text, null, data.sql, data.results, data.object_type);
+            appendChatMessage('agent', data.text, null, data.sql, data.results, data.object_type, data.pagination, data.original_query, data.chat_card);
         } else {
             appendChatMessage('agent', "I'm sorry, I couldn't process that request.");
         }
@@ -130,7 +723,7 @@ async function sendAiMessage() {
     }
 }
 
-function appendChatMessage(role, text, id = null, sql = null, results = null, objectType = null) {
+function appendChatMessage(role, text, id = null, sql = null, results = null, objectType = null, pagination = null, originalQuery = null, chatCard = null) {
     const body = document.getElementById('ai-agent-body');
     if (!body) return;
 
@@ -148,7 +741,9 @@ function appendChatMessage(role, text, id = null, sql = null, results = null, ob
     } else {
         // Convert [Action Name] into clickable buttons
         let processedText = text.replace(/\[([^\]]+)\]/g, (match, p1) => {
-            return `<button class="btn" style="padding: 4px 12px; margin: 4px; font-size: 0.75rem; border-radius: 12px; background: white; border: 1px solid #0176d3; color: #0176d3; cursor: pointer;" onclick="sendQuickMessage('${p1}')">${p1}</button>`;
+            const normalized = p1.trim().toLowerCase();
+            const actionClass = normalized === 'yes' ? 'agent-inline-action agent-inline-action-confirm' : (normalized === 'cancel' ? 'agent-inline-action agent-inline-action-cancel' : 'agent-inline-action');
+            return `<button class="${actionClass}" onclick="sendQuickMessage('${p1}')">${p1}</button>`;
         });
         processedText = processedText.replace(/\n/g, '<br>');
 
@@ -168,7 +763,11 @@ function appendChatMessage(role, text, id = null, sql = null, results = null, ob
         }
 
         if (results && results.length > 0) {
-            innerHTML += renderResultsTable(results, objectType);
+            innerHTML += renderResultsTable(results, objectType, pagination, originalQuery);
+        }
+
+        if (chatCard) {
+            innerHTML += renderAgentChatCard(chatCard);
         }
 
         innerHTML += `</div>`;
@@ -176,10 +775,160 @@ function appendChatMessage(role, text, id = null, sql = null, results = null, ob
     }
 
     body.appendChild(msgDiv);
+    updateSelectionBar();
     
     setTimeout(() => {
         msgDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }, 100);
+}
+
+function removeExistingAgentInlineForms() {
+    document.querySelectorAll('.agent-inline-form-shell').forEach(node => node.remove());
+}
+
+function appendAgentInlineFormMessage(text, formUrl, formTitle) {
+    const body = document.getElementById('ai-agent-body');
+    if (!body) return;
+
+    removeExistingAgentInlineForms();
+
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'msg-agent';
+    msgDiv.innerHTML = `
+        <div class="msg-agent-header">
+            <div class="msg-agent-icon">🤖</div>
+            <span style="font-size: 0.8rem; font-weight: 700; color: #3e3e3c;">AI AGENT</span>
+        </div>
+        <div class="msg-agent-content">
+            <div class="msg-agent-text">${text}</div>
+            <div class="agent-inline-form-shell">
+                <div class="agent-inline-form-loading">Loading ${escapeAgentHtml(formTitle || 'form')}...</div>
+            </div>
+        </div>
+    `;
+    body.appendChild(msgDiv);
+
+    const shell = msgDiv.querySelector('.agent-inline-form-shell');
+    if (shell) {
+        loadAgentInlineForm(shell, formUrl, formTitle);
+    }
+
+    setTimeout(() => {
+        msgDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }, 100);
+}
+
+async function loadAgentInlineForm(shell, formUrl, formTitle) {
+    if (!shell || !formUrl) return;
+
+    try {
+        const response = await fetch(formUrl);
+        const html = await response.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        shell.innerHTML = extractAgentWorkspaceMarkup(doc, formUrl);
+        shell.dataset.modalSourceUrl = formUrl;
+        shell.dataset.formTitle = formTitle || 'Form';
+        wireAgentInlineForm(shell, formUrl);
+    } catch (error) {
+        console.error(error);
+        shell.innerHTML = '<div class="agent-inline-form-error">Unable to load the form here right now.</div>';
+    }
+}
+
+function wireAgentInlineForm(shell, formUrl) {
+    if (!shell) return;
+
+    shell.querySelectorAll('script').forEach(script => {
+        const replacement = document.createElement('script');
+        replacement.textContent = script.textContent;
+        document.body.appendChild(replacement);
+        replacement.remove();
+    });
+
+    shell.querySelectorAll('[onclick="closeModal()"], .sf-modal-header span[onclick]').forEach(node => {
+        node.removeAttribute('onclick');
+        node.addEventListener('click', () => shell.remove());
+    });
+
+    shell.querySelectorAll('form').forEach(form => {
+        if (form.dataset.aiAgentInlineEnhanced === 'true') return;
+        form.dataset.aiAgentInlineEnhanced = 'true';
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const submitter = event.submitter || document.activeElement;
+            const submitMode = submitter?.dataset?.submitMode || 'save';
+            const submitButton = submitter || form.querySelector('button[type="submit"]');
+
+            if (typeof validateForm === 'function' && validateForm(form) === false) {
+                return;
+            }
+
+            if (submitButton) submitButton.disabled = true;
+
+            try {
+                const response = await fetch(form.action || formUrl, {
+                    method: (form.method || 'POST').toUpperCase(),
+                    body: new FormData(form),
+                    headers: { 'Accept': 'text/html,application/json' },
+                    redirect: 'follow',
+                });
+
+                const contentType = response.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    const data = await response.json();
+                    if (!response.ok || data.status === 'error') {
+                        throw new Error(data.message || 'Failed to save the form.');
+                    }
+                    appendChatMessage('agent', data.message || 'Form saved successfully.');
+                    shell.remove();
+                    return;
+                }
+
+                if (response.redirected) {
+                    const finalUrl = new URL(response.url, window.location.origin);
+                    const successMsg = decodeToastMessage(finalUrl.searchParams.get('success'), 'Record saved successfully.');
+                    const errorMsg = decodeToastMessage(finalUrl.searchParams.get('error'));
+
+                    if (errorMsg) {
+                        appendChatMessage('agent', errorMsg);
+                        return;
+                    }
+
+                    if (submitMode === 'save-new') {
+                        appendChatMessage('agent', successMsg);
+                        const sourceUrl = new URL(shell.dataset.modalSourceUrl || formUrl, window.location.origin);
+                        sourceUrl.searchParams.delete('id');
+                        await loadAgentInlineForm(shell, `${sourceUrl.pathname}${sourceUrl.search}`, shell.dataset.formTitle || 'Form');
+                        return;
+                    }
+
+                    shell.remove();
+                    appendChatMessage('agent', successMsg);
+
+                    const leadMatch = finalUrl.pathname.match(/^\/[a-zA-Z_]+\/([^/?#]+)/);
+                    if (leadMatch) {
+                        openAgentWorkspace(finalUrl.pathname, `Saved Record`);
+                    } else {
+                        const followData = await fetchAiAgentResponse(`Manage lead ${leadMatch[1]}`);
+                        if (followData?.text) {
+                            appendChatMessage('agent', followData.text, null, followData.sql, followData.results, followData.object_type, followData.pagination, followData.original_query, followData.chat_card);
+                        }
+                    }
+                    return;
+                }
+
+                const html = await response.text();
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                shell.innerHTML = extractAgentWorkspaceMarkup(doc, formUrl);
+                wireAgentInlineForm(shell, formUrl);
+            } catch (error) {
+                console.error(error);
+                appendChatMessage('agent', error.message || 'Failed to save the form.');
+            } finally {
+                if (submitButton) submitButton.disabled = false;
+            }
+        });
+    });
 }
 
 function sendQuickMessage(text) {
@@ -189,14 +938,99 @@ function sendQuickMessage(text) {
     sendAiMessage();
 }
 
-function renderResultsTable(results, objectType) {
+function sendAiMessageWithDisplay(displayText, actualQuery) {
+    appendChatMessage('user', displayText);
+    sendAiMessage(actualQuery);
+}
+
+document.addEventListener('DOMContentLoaded', applyAiAgentLanguageUi);
+
+function escapeAgentHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderAgentChatCard(card) {
+    if (!card || card.type !== 'lead_paste') return '';
+    const fields = Array.isArray(card.fields) ? card.fields : [];
+    const fieldMarkup = fields.map(field => `
+        <div class="agent-paste-row">
+            <span class="agent-paste-label">${escapeAgentHtml(field.label)}</span>
+            <span class="agent-paste-value">${escapeAgentHtml(field.value)}</span>
+        </div>
+    `).join('');
+
+    return `
+        <div class="agent-paste-card" data-agent-card-type="${escapeAgentHtml(card.type)}">
+            <div class="agent-paste-meta">${escapeAgentHtml(card.paste_label || 'Pasted')}</div>
+            <div class="agent-paste-header">
+                <strong>${escapeAgentHtml(card.title || 'Lead')}</strong>
+                <span>${escapeAgentHtml(card.subtitle || '')}</span>
+            </div>
+            <div class="agent-paste-body">${fieldMarkup}</div>
+            ${card.hint ? `<div class="agent-paste-hint">${escapeAgentHtml(card.hint)}</div>` : ''}
+        </div>
+    `;
+}
+
+function shouldUseAgentChatPaste(objectType) {
+    return objectType === 'lead';
+}
+
+function renderResultsTable(results, objectType, pagination = null, originalQuery = null) {
     if (!results || results.length === 0) return "";
+    if (!pagination && results.length > 50) {
+        const localKey = `agent-local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        localAgentResultTables[localKey] = {
+            results,
+            objectType,
+            originalQuery,
+        };
+        return renderLocalResultsTable(localKey, 1);
+    }
+
+    return renderAgentResultsMarkup(results, objectType, pagination, originalQuery);
+}
+
+function renderLocalResultsTable(tableKey, page) {
+    const tableState = localAgentResultTables[tableKey];
+    if (!tableState) return '';
+
+    const perPage = 50;
+    const safePage = Math.max(page, 1);
+    const start = (safePage - 1) * perPage;
+    const pagedResults = tableState.results.slice(start, start + perPage);
+    const pagination = {
+        page: safePage,
+        per_page: perPage,
+        total: tableState.results.length,
+        total_pages: Math.max(1, Math.ceil(tableState.results.length / perPage)),
+        object_type: tableState.objectType,
+        mode: 'local',
+        table_key: tableKey,
+    };
+
+    return renderAgentResultsMarkup(pagedResults, tableState.objectType, pagination, tableState.originalQuery);
+}
+
+function renderAgentResultsMarkup(results, objectType, pagination = null, originalQuery = null) {
+    const selectedIds = getSelectedIds(objectType);
+    const hasTemplatePreview = objectType === 'message_template';
+    const schemaKeys = (AGENT_TABLE_SCHEMAS[objectType] || Object.keys(results[0]))
+        .filter(k => Object.prototype.hasOwnProperty.call(results[0], k));
     
     let html = `
-        <div class="results-container">
+        <div class="results-container" data-object-type="${objectType || ''}" ${pagination?.table_key ? `data-table-key="${pagination.table_key}"` : ''}>
             <div class="table-controls">
-                <button class="control-btn" onclick="selectAllAgentRows(this)">✅ Select All</button>
-                <button class="control-btn" onclick="clearAllAgentRows(this)">❌ Clear All</button>
+                <button class="control-btn" onclick="selectAllAgentRows(this, '${objectType}')">✅ Select All</button>
+                <button class="control-btn" onclick="clearAllAgentRows(this, '${objectType}')">❌ Clear All</button>
+                <button class="control-btn" onclick="triggerSelectionEdit()" style="margin-left: 8px;">✏️ Edit</button>
+                <button class="control-btn" onclick="triggerSelectionDelete()" style="margin-left: 8px; color: var(--error);">🗑️ Delete</button>
+                <span class="agent-selection-label">Selected: <strong>${selectedIds.length}</strong></span>
                 <span style="font-size: 0.75rem; color: #706e6b; margin-left: auto; display: flex; align-items: center;">Click headers to sort</span>
             </div>
             <div style="overflow-x: auto;">
@@ -207,33 +1041,143 @@ function renderResultsTable(results, objectType) {
                             <th style="width: 40px;">No.</th>
     `;
     
-    const keys = Object.keys(results[0]).filter(k => !['id', 'created_at', 'updated_at', 'deleted_at', 'record_id'].includes(k));
+    const keys = schemaKeys.filter(k => !['id', 'deleted_at', 'record_id'].includes(k));
     keys.forEach((k, idx) => {
         html += `<th onclick="sortAgentTable(this, ${idx + 2})" style="cursor: pointer; position: relative; padding-right: 20px;">
-                    ${k.replace('_', ' ')}
+                    ${AGENT_TABLE_LABELS[k] || k.replace('_', ' ')}
                     <span class="sort-icon" style="position: absolute; right: 4px; opacity: 0.3;">⇅</span>
                  </th>`;
     });
+    if (hasTemplatePreview) {
+        html += '<th style="width: 110px;">Actions</th>';
+    }
     html += '</tr></thead><tbody>';
+
+    const rowStart = pagination ? ((pagination.page - 1) * pagination.per_page) + 1 : 1;
 
     results.forEach((row, index) => {
         const rowId = row.id || row.ID || "";
-        html += `<tr onclick="selectAgentRecord('${rowId}', '${objectType}')" style="cursor: pointer;">
-                    <td><input type="checkbox" onclick="event.stopPropagation()"></td>
-                    <td style="color: #666; font-size: 0.75rem;">${index + 1}</td>`;
+        const isChecked = selectedIds.includes(rowId);
+        const rowLabel = getAgentFieldValue(row, 'display_name') || row.subject || row.phone || row.email || rowId;
+        html += `<tr data-record-id="${rowId}" data-record-label="${String(rowLabel).replace(/"/g, '&quot;')}" onclick="selectAgentRecord('${rowId}', '${objectType}', this)" style="cursor: pointer;">
+                    <td><input type="checkbox" ${isChecked ? 'checked' : ''} onclick="toggleAgentRowSelection(event, '${objectType}', '${rowId}')"></td>
+                    <td style="color: #666; font-size: 0.75rem;">${rowStart + index}</td>`;
         keys.forEach(k => {
-            let val = row[k] || "-";
-            if (k === 'name' || k === 'first_name') {
+            let val = formatAgentFieldValue(k, getAgentFieldValue(row, k));
+            if ((k === 'image_url' || k === 'file_path') && typeof val === 'string' && val.startsWith('/static/')) {
+                html += `<td><button class="agent-thumbnail-btn" onclick="event.stopPropagation(); openAgentImagePreview('${escapeAgentQuery(val)}', 'Template Image')"><img src="${val}" alt="Template image" style="width: 56px; height: 56px; object-fit: cover; border-radius: 10px; border: 1px solid #d7deeb;"></button></td>`;
+            } else if (k === 'name' || k === 'first_name' || k === 'display_name') {
                 html += `<td><strong style="color: #0176d3;">${val}</strong></td>`;
             } else {
                 html += `<td>${val}</td>`;
             }
         });
+        if (hasTemplatePreview) {
+            const previewUrl = (typeof row.image_url === 'string' && row.image_url.startsWith('/static/'))
+                ? row.image_url
+                : ((typeof row.file_path === 'string' && row.file_path.startsWith('/static/')) ? row.file_path : '');
+            html += `<td><div class="agent-action-stack">${previewUrl ? `<button class="control-btn" onclick="event.stopPropagation(); openAgentImagePreview('${escapeAgentQuery(previewUrl)}', 'Template Preview')">Preview</button>` : '<span style="color:#8a94a6;font-size:0.78rem;">No image</span>'}<button class="control-btn control-btn-primary" onclick="event.stopPropagation(); startTemplateSendFromAgent('${rowId}')">Use In Send Message</button></div></td>`;
+        }
         html += '</tr>';
     });
     
-    html += '</tbody></table></div></div>';
+    html += '</tbody></table></div>';
+
+    if (pagination && pagination.total_pages > 1 && originalQuery) {
+        html += `
+            <div class="agent-pagination">
+                <button class="control-btn" ${pagination.page <= 1 ? 'disabled' : ''} onclick="${pagination.mode === 'local' ? `requestLocalAgentPage('${pagination.table_key}', ${pagination.page - 1})` : `requestAgentPage('${escapeAgentQuery(originalQuery)}', ${pagination.page - 1})`}">Previous</button>
+                <span class="agent-pagination-label">Page ${pagination.page} of ${pagination.total_pages} · ${pagination.total} records${pagination.mode === 'local' ? ' · Local' : ''}</span>
+                <button class="control-btn" ${pagination.page >= pagination.total_pages ? 'disabled' : ''} onclick="${pagination.mode === 'local' ? `requestLocalAgentPage('${pagination.table_key}', ${pagination.page + 1})` : `requestAgentPage('${escapeAgentQuery(originalQuery)}', ${pagination.page + 1})`}">Next</button>
+            </div>
+        `;
+    }
+
+    html += '</div>';
     return html;
+}
+
+function requestLocalAgentPage(tableKey, page) {
+    const container = document.querySelector(`.results-container[data-table-key="${tableKey}"]`);
+    const markup = renderLocalResultsTable(tableKey, page);
+    if (container && markup) {
+        container.outerHTML = markup;
+    }
+}
+
+function escapeAgentQuery(value) {
+    return String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+function requestAgentPage(query, page) {
+    sendAiMessage(query, page);
+}
+
+function getSelectedIds(objectType) {
+    if (!objectType || !aiAgentSelectionState[objectType]) return [];
+    return Array.from(aiAgentSelectionState[objectType]);
+}
+
+function buildSelectionPayload() {
+    if (!aiAgentActiveSelectionObject) return null;
+    const ids = getSelectedIds(aiAgentActiveSelectionObject);
+    if (!ids.length) return null;
+    const meta = ensureSelectionMeta(aiAgentActiveSelectionObject);
+    return {
+        object_type: aiAgentActiveSelectionObject,
+        ids: ids,
+        labels: ids.map(id => meta?.get(id) || id),
+    };
+}
+
+function getAgentObjectRoute(objectType, recordId, action = 'detail') {
+    const routes = {
+        lead: { detail: `/leads/${recordId}`, edit: `/leads/new-modal?id=${recordId}` },
+        contact: { detail: `/contacts/${recordId}`, edit: `/contacts/new-modal?id=${recordId}` },
+        opportunity: { detail: `/opportunities/${recordId}`, edit: `/opportunities/new-modal?id=${recordId}` },
+        product: { detail: `/products/${recordId}`, edit: `/products/new-modal?id=${recordId}` },
+        asset: { detail: `/assets/${recordId}`, edit: `/assets/new-modal?id=${recordId}` },
+        model: { detail: `/models/${recordId}`, edit: `/models/new-modal?id=${recordId}` },
+        brand: { detail: `/vehicle_specifications/${recordId}`, edit: `/vehicle_specifications/new-modal?id=${recordId}` },
+        message_template: { detail: `/message_templates/${recordId}`, edit: null },
+    };
+    return routes[objectType]?.[action] || null;
+}
+
+function ensureSelectionBucket(objectType) {
+    if (!objectType) return null;
+    if (!aiAgentSelectionState[objectType]) {
+        aiAgentSelectionState[objectType] = new Set();
+    }
+    return aiAgentSelectionState[objectType];
+}
+
+function updateSelectionLabel(container, objectType) {
+    if (!container || !objectType) return;
+    const label = container.querySelector('.agent-selection-label strong');
+    if (label) {
+        label.textContent = getSelectedIds(objectType).length;
+    }
+}
+
+function toggleAgentRowSelection(event, objectType, recordId) {
+    event.stopPropagation();
+    if (!objectType || !recordId) return;
+    aiAgentActiveSelectionObject = objectType;
+    aiAgentActiveSelectionContainer = event.target.closest('.results-container') || aiAgentActiveSelectionContainer;
+    const bucket = ensureSelectionBucket(objectType);
+    const meta = ensureSelectionMeta(objectType);
+    const row = event.target.closest('tr');
+    const label = row?.getAttribute('data-record-label') || recordId;
+    if (event.target.checked) {
+        bucket.add(recordId);
+        meta?.set(recordId, label);
+    } else {
+        bucket.delete(recordId);
+        meta?.delete(recordId);
+    }
+    updateSelectionLabel(event.target.closest('.results-container'), objectType);
+    updateSelectionBar();
 }
 
 let agentSortAsc = true;
@@ -287,21 +1231,125 @@ function sortAgentTable(th, colIdx) {
     });
 }
 
-function selectAllAgentRows(btn) {
+function selectAllAgentRows(btn, objectType) {
     const table = btn.closest('.results-container').querySelector('table');
-    table.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
+    const bucket = ensureSelectionBucket(objectType);
+    const meta = ensureSelectionMeta(objectType);
+    aiAgentActiveSelectionObject = objectType;
+    aiAgentActiveSelectionContainer = btn.closest('.results-container');
+    table.querySelectorAll('tbody tr').forEach(row => {
+        const checkbox = row.querySelector('input[type="checkbox"]');
+        if (!checkbox) return;
+        const recordId = row.getAttribute('data-record-id');
+        const label = row.getAttribute('data-record-label') || recordId;
+        checkbox.checked = true;
+        if (recordId) {
+            bucket.add(recordId);
+            meta?.set(recordId, label);
+        }
+    });
+    updateSelectionLabel(btn.closest('.results-container'), objectType);
+    updateSelectionBar();
 }
 
-function clearAllAgentRows(btn) {
+function clearAllAgentRows(btn, objectType) {
     const table = btn.closest('.results-container').querySelector('table');
     table.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+    if (objectType && aiAgentSelectionState[objectType]) {
+        aiAgentSelectionState[objectType].clear();
+    }
+    if (objectType && aiAgentSelectionMeta[objectType]) {
+        aiAgentSelectionMeta[objectType].clear();
+    }
+    updateSelectionLabel(btn.closest('.results-container'), objectType);
+    updateSelectionBar();
 }
 
-function selectAgentRecord(recordId, objectType) {
-    if (!recordId) return;
-    const input = document.getElementById('ai-agent-input');
-    input.value = `Manage ${objectType} ${recordId}`;
-    sendAiMessage();
+function clearActiveSelection() {
+    Object.keys(aiAgentSelectionState).forEach(objectType => {
+        aiAgentSelectionState[objectType].clear();
+    });
+    Object.keys(aiAgentSelectionMeta).forEach(objectType => {
+        aiAgentSelectionMeta[objectType].clear();
+    });
+    aiAgentActiveSelectionObject = null;
+    aiAgentActiveSelectionContainer = null;
+    document.querySelectorAll('.results-container input[type="checkbox"]').forEach(cb => {
+        cb.checked = false;
+    });
+    document.querySelectorAll('.results-container').forEach(container => {
+        const objectType = container.getAttribute('data-object-type');
+        updateSelectionLabel(container, objectType);
+    });
+    updateSelectionBar();
+}
+
+function triggerSelectionMessaging() {
+    const selection = buildSelectionPayload();
+    if (!selection) {
+        appendChatMessage('agent', getAiAgentUiCopy().sendMessageGuide);
+        return;
+    }
+    sendQuickMessage('Send Message');
+}
+
+function triggerSelectionOpen() {
+    const selection = buildSelectionPayload();
+    if (!selection || selection.ids.length < 1) {
+        appendChatMessage('agent', 'Select at least one record first, then choose Open.');
+        return;
+    }
+    const label = selection.labels?.[0] || selection.ids[0];
+    if (shouldUseAgentChatPaste(selection.object_type)) {
+        sendAiMessageWithDisplay(`Open ${label}`, `Manage ${selection.object_type} ${selection.ids[0]}`);
+        return;
+    }
+    const url = getAgentObjectRoute(selection.object_type, selection.ids[0], 'detail');
+    if (url) {
+        openAgentWorkspace(url, `${label}`);
+        return;
+    }
+    sendAiMessageWithDisplay(`Open ${label}`, `Show ${selection.object_type} ${selection.ids[0]}`);
+}
+
+function triggerSelectionEdit() {
+    const selection = buildSelectionPayload();
+    if (!selection || selection.ids.length < 1) {
+        appendChatMessage('agent', 'Select at least one record to edit.');
+        return;
+    }
+    const label = selection.labels?.[0] || selection.ids[0];
+    if (shouldUseAgentChatPaste(selection.object_type)) {
+        sendAiMessageWithDisplay(`Edit ${label}`, `Manage ${selection.object_type} ${selection.ids[0]} edit`);
+        return;
+    }
+    const url = getAgentObjectRoute(selection.object_type, selection.ids[0], 'edit');
+    if (url) {
+        openAgentWorkspace(url, `Edit ${label}`);
+        return;
+    }
+    sendAiMessageWithDisplay(`Edit ${label}`, `Manage ${selection.object_type} ${selection.ids[0]}`);
+}
+
+function triggerSelectionDelete() {
+    const selection = buildSelectionPayload();
+    if (!selection) {
+        appendChatMessage('agent', 'Select one or more records to delete them.');
+        return;
+    }
+    const firstLabel = selection.labels?.[0] || selection.ids[0];
+    sendAiMessageWithDisplay(
+        selection.ids.length === 1 ? `Delete ${firstLabel}` : `Delete ${selection.ids.length} selected ${normalizeObjectLabel(selection.object_type, selection.ids.length)}`,
+        selection.ids.length === 1 ? `Delete ${selection.object_type} ${selection.ids[0]}` : `Delete selected ${selection.object_type} records`
+    );
+}
+
+function selectAgentRecord(recordId, objectType, row) {
+    if (!recordId || !objectType || !row) return;
+    const checkbox = row.querySelector('input[type="checkbox"]');
+    if (!checkbox) return;
+    checkbox.checked = !checkbox.checked;
+    toggleAgentRowSelection({ stopPropagation() {}, target: checkbox }, objectType, recordId);
 }
 
 async function startAiRecommend(btn) {
@@ -319,7 +1367,10 @@ async function startAiRecommend(btn) {
                 container.innerHTML = html;
                 container.style.display = 'block';
             }
-            if (typeof showToast === 'function') showToast("AI Recommendations updated successfully!");
+            const modeLabel = document.querySelector('[data-ai-recommend-current-mode]')?.textContent?.replace('AI Recommend Mode: ', '').trim();
+            const pendingModeToast = window.aiRecommendPendingToast || (modeLabel ? `AI Recommend mode set to ${modeLabel}.` : '');
+            window.aiRecommendPendingToast = '';
+            if (pendingModeToast && typeof showToast === 'function') showToast(pendingModeToast);
         } else {
             if (typeof showToast === 'function') showToast("Server error loading recommendations.", true);
         }
@@ -328,4 +1379,38 @@ async function startAiRecommend(btn) {
         if (typeof showToast === 'function') showToast("Network error loading recommendations.", true);
     }
     finally { btn.innerText = originalText; btn.disabled = false; }
+}
+
+function updateDashboardRecommendationModeButtons(mode) {
+    document.querySelectorAll('[data-ai-recommend-mode]').forEach(btn => {
+        const isActive = btn.getAttribute('data-ai-recommend-mode') === mode;
+        btn.classList.toggle('is-active', isActive);
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+
+    const label = document.querySelector('[data-ai-recommend-current-mode]');
+    if (label) {
+        label.textContent = `AI Recommend Mode: ${mode}`;
+    }
+}
+
+async function setDashboardRecommendationMode(mode) {
+    try {
+        const response = await fetch('/api/recommendations/mode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode })
+        });
+
+        const payload = await response.json();
+        if (!response.ok || payload.status !== 'success') {
+            throw new Error(payload.message || 'Failed to change recommendation mode.');
+        }
+
+        updateDashboardRecommendationModeButtons(payload.mode);
+        window.aiRecommendPendingToast = `AI Recommend mode set to ${payload.mode}.`;
+    } catch (error) {
+        console.error(error);
+        if (typeof showToast === 'function') showToast('Unable to change AI recommendation mode.', true);
+    }
 }

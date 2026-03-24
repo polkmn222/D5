@@ -1,0 +1,55 @@
+<!-- Recommended Deals Table (AJAX Fragment) -->
+<div class="sf-card" style="margin-bottom: 1rem; animation: fadeIn 0.5s;">
+    <div class="sf-card-header" style="color: var(--nav-blue); display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span>✨ AI Recommended Deals</span>
+        </div>
+        <span class="badge" style="background: #ebf5ff; color: #0070d2; border: 1px solid #b0adab; font-size: 0.75rem;">
+            Mode: {{ recommendation_mode or 'Default' }}
+        </span>
+    </div>
+    <table class="sf-table">
+        <thead>
+            <tr>
+                <th onclick="sortTable(this, 0)">Name</th>
+                <th onclick="sortTable(this, 1)">Amount</th>
+                <th onclick="sortTable(this, 2)">Stage</th>
+                <th onclick="sortTable(this, 3)">Temperature</th>
+                <th onclick="sortTable(this, 4)">Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for opp in recommended_opportunities %}
+            <tr>
+                <td><a href="/opportunities/{{ opp.id }}" style="text-decoration: none; color: var(--nav-blue);"><strong>{{ opp.name }}</strong></a></td>
+                <td>₩ {{ "{:,}".format(opp.amount) if opp.amount else '0' }}</td>
+                <td><span class="badge badge-{{ opp.stage|lower|replace(' ', '-') }}">{{ opp.stage }}</span></td>
+                <td>
+                    {% if opp.temp_display == 'Hot' %}
+                        <span style="color: #e74c3c; font-weight: bold;">🔥 Hot</span>
+                    {% elif opp.temp_display == 'Warm' %}
+                        <span style="color: #f39c12; font-weight: bold;">☀️ Warm</span>
+                    {% elif opp.temp_display == 'Cold' %}
+                        <span style="color: #3498db; font-weight: bold;">❄️ Cold</span>
+                    {% else %}
+                        {{ opp.temp_display if opp.temp_display else '' }}
+                    {% endif %}
+                </td>
+                <td style="font-size: 0.8rem; color: var(--text-label);">{{ opp.created_at.strftime('%Y-%m-%d') if opp.created_at else '' }}</td>
+            </tr>
+            {% endfor %}
+            {% if not recommended_opportunities %}
+            <tr>
+                <td colspan="5" style="text-align: center; color: var(--text-label); padding: 2rem;">No recommendations found for this period.</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<style>
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
