@@ -1078,7 +1078,7 @@ class AiAgentService:
                         "messages": [{"role": "system", "content": system}, {"role": "user", "content": query}],
                         "response_format": { "type": "json_object" }
                     },
-                    timeout=10.0
+                    timeout=8.0
                 )
                 return json.loads(resp.json()["choices"][0]["message"]["content"])
         except Exception: return {}
@@ -1095,7 +1095,7 @@ class AiAgentService:
                         "messages": [{"role": "system", "content": system}, {"role": "user", "content": query}],
                         "response_format": { "type": "json_object" }
                     },
-                    timeout=10.0
+                    timeout=8.0
                 )
                 return json.loads(resp.json()["choices"][0]["message"]["content"])
         except Exception: return {}
@@ -1124,7 +1124,7 @@ class AiAgentService:
                             "response_mime_type": "application/json"
                         }
                     },
-                    timeout=15.0,
+                    timeout=8.0,
                 )
                 payload = response.json()
 
@@ -1152,7 +1152,7 @@ class AiAgentService:
                         "messages": [{"role": "system", "content": system}, {"role": "user", "content": query}],
                         "response_format": { "type": "json_object" }
                     },
-                    timeout=15.0
+                    timeout=9.0
                 )
                 return json.loads(resp.json()["choices"][0]["message"]["content"])
         except Exception: return {}

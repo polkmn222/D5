@@ -27,5 +27,5 @@ This plan defines how the active documentation set should evolve with the codeba
 ### 4. Phase Traceability
 
 - Record each meaningful documentation or code change in `task/<range>/`, `Implementation/<range>/`, and `Walkthrough/<range>/` using the next unused phase number.
-- Preserve a full pre-change codebase snapshot in the grouped backup path, for example `.gemini/development/backups/101_199/phaseN/`.
+- Preserve a full pre-change codebase snapshot in the grouped backup path, for example `backups/101_199/phaseN/`.
 - Avoid overwriting an existing phase number even if the numbers are non-contiguous.

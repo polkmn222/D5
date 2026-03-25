@@ -121,6 +121,6 @@ This document describes the practical implementation guidance for the four activ
 
 - Update docs when runtime behavior changes.
 - Use the next unused phase number before creating `task`, `Implementation`, `Walkthrough`, or `backups` artifacts.
-- Store full pre-change copies of the codebase under the matching grouped backup path such as `.gemini/development/backups/101_199/phaseN/`.
+- Store full pre-change copies of the codebase under the matching grouped backup path such as `backups/101_199/phaseN/`.
 - Run focused verification for the surfaces you touch and record it in the phase walkthrough.
 - Prefer adding D4-specific wrapper or usage docs beside imported skill libraries instead of editing generated third-party content directly.

@@ -7,7 +7,7 @@ Before creating any new phase artifacts, find the next unused phase number acros
 - `task/<range>/task_phaseN.md`
 - `Implementation/<range>/Implementation_phaseN.md`
 - `Walkthrough/<range>/Walkthrough_phaseN.md`
-- `.gemini/development/backups/<range>/phaseN/`
+- `backups/<range>/phaseN/`
 
 Never overwrite an existing phase number. If one folder already contains `phase65`, use the next fully unused phase number instead.
 
@@ -23,14 +23,14 @@ Never overwrite an existing phase number. If one folder already contains `phase6
 - Use this review priority when the docs set is large: `docs/*.md` -> `docs/testing/*.md` -> D4-specific skill guides -> imported agency skill docs.
 - When working on tests, also review the canonical testing docs under `.gemini/development/docs/testing/`.
 - Before planning or running unit tests, read the canonical testing docs under `.gemini/development/docs/testing/`.
-- All repository files will be backed up as a full codebase snapshot under `.gemini/development/backups/<range>/phaseN/`.
+- All repository files will be backed up as a full codebase snapshot under `backups/<range>/phaseN/`.
 - Create new project-level markdown files in `.gemini/development/docs/` unless they are phase tracking artifacts in `task/`, `Implementation/`, or `Walkthrough/`, or a folder-local README.
 
 ### 2. Backup
 
-- Rather than copying every file, back up STRICTLY the modified modules (folders) into `.gemini/development/backups/<range>/phaseN/` before starting execution.
+- Rather than copying every file, back up STRICTLY the modified modules (folders) into `backups/<range>/phaseN/` before starting execution.
 - Never delete `.md` files under any circumstances, including during the backup process.
-- Always create the grouped range folder first when needed, then create the dedicated phase folder inside it. Do not place loose phase folders directly under `.gemini/development/backups/`.
+- Always create the grouped range folder first when needed, then create the dedicated phase folder inside it. Do not place loose phase folders directly under `backups/`.
 - Preserve the exact relative structure of the entire repository for the modules being backed up.
 - This targeted, module-specific backup is mandatory for every phase.
 - Use hundred-style grouped ranges: `001_100` for phases 1-100, `101_199` for phases 101-199, `200_299` for phases 200-299, and continue the same pattern for later ranges.
@@ -57,7 +57,7 @@ Never overwrite an existing phase number. If one folder already contains `phase6
 - Create `Implementation/<range>/Implementation_phaseN.md` describing the changes.
 - Create `Walkthrough/<range>/Walkthrough_phaseN.md` summarizing the final state and validation.
 - Report the chosen phase number so concurrent work can be traced cleanly.
-- Keep backup outputs grouped under `.gemini/development/backups/<range>/phaseN/` so each phase can be reviewed independently.
+- Keep backup outputs grouped under `backups/<range>/phaseN/` so each phase can be reviewed independently.
 
 ## AI Agent Operational Directives
 
