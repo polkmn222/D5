@@ -402,8 +402,7 @@ class AiAgentService:
         actions = []
         if mode == "view":
             actions = [
-                {"label": "Open Record", "action": "open", "tone": "primary"},
-                {"label": "Edit", "action": "edit", "tone": "secondary"},
+                {"label": "Edit", "action": "edit", "tone": "primary"},
                 {"label": "Send Message", "action": "send_message", "tone": "secondary"},
                 {"label": "Delete", "action": "delete", "tone": "danger"},
             ]
@@ -644,7 +643,7 @@ class AiAgentService:
                 }
 
         normalized_query = IntentPreClassifier.normalize(user_query)
-        is_force_delete = "[force_delete]" in user_query.lower() or "[FORCE_DELETE]" in user_query
+        is_force_delete = "[force_delete]" in user_query.lower()
         delete_markers = ["delete", "remove", "erase", "nuke", "dump", "삭제"]
         if not any(marker in q_low or marker in user_query for marker in delete_markers):
             return None
@@ -968,14 +967,11 @@ class AiAgentService:
         - The UI already handles final confirmations. Proceed directly to the deletion without asking "Are you sure?" again.
         
         TABLE DATA STANDARDS:
-        - For all record displays (QUERY, CREATE, UPDATE, MANAGE): You MUST strictly follow the AGENT_TABLE_SCHEMAS.
-        - Leads/Contacts: You MUST use `TRIM(CONCAT_WS(' ', first_name, last_name)) AS display_name`. 
-        - Leads/Opportunities/Assets/Products: You MUST JOIN with the `models` table to provide `model_name` (e.g. GV80) instead of raw UUIDs.
+        - When querying Leads/Contacts: You MUST use `TRIM(CONCAT_WS(' ', first_name, last_name)) AS display_name`. Never return first_name/last_name separately if `display_name` is expected by the schema.
+        - When querying Leads/Opportunities/Assets/Products: You MUST JOIN with the `models` table to provide `model_name` (actual model name like GV80) instead of raw UUIDs.
         - Your `SELECT` fields MUST match exactly with the frontend schemas:
           - Lead: display_name, phone, status, model_name, created_at
           - Contact: display_name, phone, email, tier, created_at
-          - Opportunity: name, contact_display_name, contact_phone, stage, amount, model_name
-        - Always return the `id` field in SQL queries as the first column.
         
         RESPONSE FORMAT (Strict JSON):
         {{
@@ -1461,9 +1457,6 @@ class AiAgentService:
                     return {"intent": "CHAT", "text": "I encountered an error while creating the contact."}
                 name = getattr(res, "name", None) or f"{res.first_name} {res.last_name}"
                 agent_output["text"] = f"Success! Created Contact {name} (ID: {res.id})."
-                agent_output["intent"] = "OPEN_RECORD"
-                agent_output["record_id"] = str(res.id)
-                agent_output["redirect_url"] = f"/contacts/{res.id}"
                 ConversationContextStore.remember_created(conversation_id, obj, str(res.id))
                 return agent_output
             elif obj == "opportunity":
@@ -1471,9 +1464,6 @@ class AiAgentService:
                 if not res:
                     return {"intent": "CHAT", "text": "I encountered an error while creating the opportunity."}
                 agent_output["text"] = f"Success! Created Opportunity {res.name} (ID: {res.id})."
-                agent_output["intent"] = "OPEN_RECORD"
-                agent_output["record_id"] = str(res.id)
-                agent_output["redirect_url"] = f"/opportunities/{res.id}"
                 ConversationContextStore.remember_created(conversation_id, obj, str(res.id))
                 return agent_output
             elif obj == "brand":
@@ -1543,23 +1533,11 @@ class AiAgentService:
                 return agent_output
             elif obj == "contact":
                 res = ContactService.update_contact(db, record_id, **data)
-                if res:
-                    agent_output["text"] = f"Success! Updated Contact {record_id}."
-                    agent_output["intent"] = "OPEN_RECORD"
-                    agent_output["record_id"] = record_id
-                    agent_output["redirect_url"] = f"/contacts/{record_id}"
-                else:
-                    agent_output["text"] = f"Contact {record_id} not found."
+                agent_output["text"] = f"Success! Updated Contact {record_id}." if res else f"Contact {record_id} not found."
                 return agent_output
             elif obj == "opportunity":
                 res = OpportunityService.update_opportunity(db, record_id, **data)
-                if res:
-                    agent_output["text"] = f"Success! Updated Opportunity {record_id}."
-                    agent_output["intent"] = "OPEN_RECORD"
-                    agent_output["record_id"] = record_id
-                    agent_output["redirect_url"] = f"/opportunities/{record_id}"
-                else:
-                    agent_output["text"] = f"Opportunity {record_id} not found."
+                agent_output["text"] = f"Success! Updated Opportunity {record_id}." if res else f"Opportunity {record_id} not found."
                 return agent_output
             elif obj == "brand":
                 res = VehicleSpecService.update_vehicle_spec(db, record_id, **data)
