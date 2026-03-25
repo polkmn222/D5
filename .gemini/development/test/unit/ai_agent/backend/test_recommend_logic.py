@@ -3,7 +3,7 @@ from unittest.mock import patch
 from datetime import datetime, timedelta
 from db.database import SessionLocal, Base, engine
 from db.models import Opportunity, Contact, Model, VehicleSpecification
-from ai_agent.backend.recommendations import AIRecommendationService
+from ai_agent.llm.backend.recommendations import AIRecommendationService
 from web.backend.app.services.opportunity_service import OpportunityService
 from web.backend.app.services.contact_service import ContactService
 from web.backend.app.services.model_service import ModelService

@@ -1,0 +1,459 @@
+:root {
+    --primary: #0070d2;
+    --hover: #005fb2;
+    --background: #f3f2f1;
+    --surface: #ffffff;
+    --text: #080707;
+    --text-label: #3e3e3c;
+    --border: #dddbda;
+    --success: #2e844a;
+    --error: #ea001e;
+    --header-bg: #f3f3f3;
+    --nav-blue: #0176d3;
+    --shadow: 0 2px 2px 0 rgba(0,0,0,0.1);
+    --radius: 0.25rem;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { 
+    font-family: 'Inter', -apple-system, system-ui, sans-serif; 
+    background-color: var(--background);
+    color: var(--text);
+}
+
+/* Header & Tab Bar */
+.sf-header {
+    background: white;
+    border-bottom: 1px solid var(--border);
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.sf-tabs {
+    background: white;
+    display: flex;
+    padding: 0 1rem;
+    border-bottom: 3px solid var(--nav-blue);
+}
+
+.sf-tab {
+    padding: 0.75rem 1rem;
+    color: var(--text-label);
+    text-decoration: none;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    border-top: 3px solid transparent;
+}
+
+.sf-tab.active {
+    background: #eef4ff;
+    border-top: 3px solid var(--nav-blue);
+    color: var(--nav-blue);
+}
+
+/* Layout Grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 1rem;
+    padding: 1rem;
+}
+
+/* Salesforce Card Style */
+.sf-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.sf-card-header {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* Buttons */
+.btn {
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: white;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    transition: 0.2s;
+}
+
+.btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+.btn-primary:hover { background: var(--hover); }
+
+/* Table */
+.sf-table { width: 100%; border-collapse: collapse; }
+.sf-table th { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--border); color: var(--text-label); font-size: 0.75rem; text-transform: uppercase; }
+.sf-table td { padding: 0.75rem 0.5rem; border-bottom: 1px solid var(--border); font-size: 0.8125rem; }
+
+/* Badge */
+.badge { padding: 0.125rem 0.5rem; border-radius: 1rem; font-size: 0.7rem; font-weight: 700; }
+.badge-new { background: #e0f0fd; color: #0070d2; }
+/* Modal */
+.sf-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(8, 7, 7, 0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.sf-modal {
+    background: white;
+    width: 600px;
+    max-width: 90%;
+    border-radius: var(--radius);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+    overflow: hidden;
+    position: relative;
+}
+
+.sf-modal-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f3f3f3;
+}
+
+.sf-modal-body {
+    padding: 2rem 1.5rem;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.sf-modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border);
+    background: #f3f3f3;
+    display: flex;
+    justify-content: right;
+    gap: 0.5rem;
+}
+
+.record-type-option {
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 1rem;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.record-type-option:hover {
+    border-color: var(--nav-blue);
+    background: #f4f6f9;
+}
+
+.record-type-option.active {
+    border-color: var(--nav-blue);
+    box-shadow: 0 0 0 1px var(--nav-blue);
+}
+
+/* Detail View UI */
+.detail-header {
+    background: white;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.detail-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    background: #49a5e1;
+    color: white;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+/* Salesforce Path (Progress Bar) */
+.sf-path {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.75rem 1.5rem;
+    background: #f3f3f3;
+}
+
+.sf-path-item {
+    flex: 1;
+    padding: 0.5rem 1rem;
+    background: white;
+    clip-path: polygon(calc(100% - 10px) 0%, 100% 50%, calc(100% - 10px) 100%, 0% 100%, 10px 50%, 0% 0%);
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-label);
+    cursor: pointer;
+    margin-left: -5px;
+}
+
+.sf-path-item:first-child { clip-path: polygon(calc(100% - 10px) 0%, 100% 50%, calc(100% - 10px) 100%, 0% 100%, 0% 0%); margin-left: 0; }
+.sf-path-item.active { background: var(--nav-blue); color: white; }
+.sf-path-item.completed { background: var(--success); color: white; }
+
+/* In-Page Navigation Tabs */
+.detail-tabs {
+    background: white;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    padding: 0 1.5rem;
+}
+
+.detail-tab {
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    color: var(--text-label);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+}
+
+.detail-tab.active {
+    border-bottom-color: var(--nav-blue);
+    font-weight: 700;
+    color: var(--text);
+}
+
+/* Field Grid & Items */
+.field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 4rem;
+}
+
+.sf-field-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border);
+    min-height: 4rem;
+}
+
+.sf-field-label {
+    font-size: 0.75rem;
+    color: var(--text-label);
+    margin-bottom: 0.25rem;
+}
+
+.sf-field-value {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.sf-pencil-icon {
+    font-size: 0.875rem;
+    color: var(--text-label);
+    cursor: pointer;
+    opacity: 0.3;
+    transition: 0.2s;
+    padding: 4px;
+}
+
+.sf-field-item:hover .sf-pencil-icon {
+    opacity: 1;
+}
+
+/* Advanced Layout Refinements */
+.sf-description-large {
+    grid-column: span 2;
+    margin-top: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.sf-system-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 2px solid var(--border);
+}
+
+.sf-system-user {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+}
+
+.sf-user-avatar {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background: #ccc;
+    object-fit: cover;
+}
+
+/* Interactive Path Hover */
+.sf-path-item:hover:not(.active):not(.completed) {
+    background: #eef4ff;
+    color: var(--nav-blue);
+}
+
+.sf-path-item.active {
+    background: #00396b; /* Darker blue for active */
+    color: white;
+}
+
+.sf-path-item.completed {
+    background: #2e844a;
+    color: white;
+}
+
+/* Phase 17: High-Fidelity UX */
+.sf-toast-container {
+    position: fixed;
+    top: 5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    pointer-events: none;
+}
+
+.sf-toast {
+    background: #04844b;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-width: 400px;
+    pointer-events: auto;
+    animation: slideDown 0.3s ease-out;
+}
+
+.sf-toast.error { background: #ea001e; }
+
+.sf-toast .undo-link {
+    color: white;
+    text-decoration: underline;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.sf-toast .close-btn {
+    margin-left: auto;
+    cursor: pointer;
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Delete Confirmation Modal */
+.sf-confirm-modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.sf-confirm-box {
+    background: white;
+    width: 450px;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+}
+
+.sf-confirm-header {
+    padding: 1rem;
+    text-align: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    border-bottom: 1px solid var(--border);
+}
+
+.sf-confirm-body {
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-main);
+}
+
+.sf-confirm-footer {
+    padding: 1rem;
+    background: #f3f3f2;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+/* Inline Editing */
+.sf-editable-field {
+    position: relative;
+    padding: 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    min-height: 24px;
+}
+
+.sf-editable-field:hover {
+    background: #f3f3f2;
+}
+
+.sf-inline-input {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid var(--nav-blue);
+    border-radius: 4px;
+    font-size: 0.8125rem;
+    outline: none;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.sf-inline-actions {
+    margin-top: 4px;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.btn-inline-save {
+    background: var(--nav-blue);
+    color: white;
+    padding: 2px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-inline-cancel {
+    background: white;
+    border: 1px solid var(--border);
+    padding: 2px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}

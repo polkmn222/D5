@@ -1,0 +1,52 @@
+# UI Standards
+
+## Object Detail Views
+To ensure unity across all objects in the CRM, the following standards must be followed for Detail views:
+
+### 1. Tabs and Page Framing
+
+- Detail pages should preserve the established `Details` and `Related` tab structure used by the shared detail templates.
+- Shared behaviors defined in `web/frontend/templates/base.html` remain the default source for inline editing, footer actions, and shared scripts.
+- Message and message-template pages may live under `web/message/frontend/templates/` while still following the same overall product grammar.
+
+### 2. Pencil Buttons and Inline Editing
+
+- Use the pencil emoji (`✏️`) inside a `span.sf-pencil-icon` for inline-edit affordances.
+- Keep the icon inside the `sf-editable-field` container so field-level interaction stays consistent.
+- Standard fields should trigger `toggleInlineEdit(...)` from the editable container.
+- Lookup fields should trigger `toggleLookupEdit(...)` from the pencil icon and call `event.stopPropagation()`.
+- Pencil icons should hide while the page is in edit mode through the shared `.sf-editing` body state.
+- Exception: do not add pencil icons to views that intentionally avoid inline editing. The current `messages/detail_view.html` implementation uses object-level `Edit` / `Delete` actions instead of shared inline-pencil editing and should be tested against that contract.
+
+### 3. Multi-Field Editing
+
+- Users should be able to open multiple field editors before saving.
+- The shared `#sf-edit-footer` action area is the standard save and cancel surface for pending inline edits.
+- This rule applies only to pages that actually participate in inline edit. Read-only detail pages should not fake editable controls just to satisfy old tests.
+
+### 4. Bulk Actions
+
+- Bulk deletion should use checkbox-driven selection within a modal or list-oriented bulk action surface.
+- The delete CTA should appear only when one or more records are selected.
+- Bulk actions should continue to use the shared `bulk_action.js` helper and the `/bulk/delete` endpoint.
+- Utility lists and messaging-related lists should follow the same selection and confirmation pattern as core CRM objects.
+
+### 5. Layout and Empty-State Rendering
+
+- Use the standard responsive two-column field grid for detail sections.
+- Place labels above values or inline within the established detail card layout.
+- Render null or missing values as blank output through the shared formatting pattern rather than exposing `None`, `N/A`, or broken placeholders.
+
+### 6. Responsive Consistency
+
+- Desktop and mobile layouts should preserve tab usability, field readability, and action discoverability.
+- New object pages should reuse shared detail patterns before introducing object-specific deviations.
+
+### 7. Cross-Object UI Consistency
+
+- Object pages should use a consistent icon language for list headers, detail headers, and Related cards.
+- Currency values such as `amount`, `price`, and `base_price` should render through the shared currency formatting pattern.
+- Lookup fields should use the shared lookup component and preserve context-aware prefills when launched from related flows.
+- Buttons such as `Back`, `View All`, `New`, `Edit`, `Delete`, and object-level actions should use the same button grammar across objects rather than mixing link-like and button-like styling.
+- Related `View All` pages should remain simplified list surfaces without the full saved list-view workspace controls.
+- Test suites that validate cross-object UI consistency must account for split template roots and object-specific exceptions before treating a missing control as a product regression.

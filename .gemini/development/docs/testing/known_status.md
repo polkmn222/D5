@@ -1,5 +1,13 @@
 # Known Test Status
 
+This file tracks tests that are known to have special behavior, skip conditions, or were updated for specific reasons.
+
+## Phase 169 Changes
+
+| Test | Status | Reason |
+|---|---|---|
+| `test_lead_update_returns_view_card` | Updated | Changed from `process_query` (LLM-path, non-deterministic) to `_execute_intent` (deterministic). LLM may classify `update lead TEST_FLOW_LEAD ...` differently based on model used. Core behavior is now tested reliably. |
+
 ## Current Full Unit Reference
 
 - Command: `PYTHONPATH=.gemini/development pytest .gemini/development/test/unit -rs -q`

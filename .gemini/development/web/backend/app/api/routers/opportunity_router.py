@@ -21,7 +21,7 @@ from db.models import Model, Opportunity
 from datetime import datetime
 import logging
 
-from ai_agent.backend.recommendations import AIRecommendationService
+from ai_agent.llm.backend.recommendations import AIRecommendationService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

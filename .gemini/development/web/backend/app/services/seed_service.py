@@ -1,7 +1,7 @@
 import json
 import httpx
 import logging
-from ai_agent.backend.ai_service import AIService, GROQ_API_KEY
+from ai_agent.llm.backend.ai_service import AIService, GROQ_API_KEY
 from sqlalchemy.orm import Session
 
 class SeedService:

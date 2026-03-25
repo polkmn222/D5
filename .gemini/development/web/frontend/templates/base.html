@@ -416,7 +416,13 @@
                     method: 'POST',
                     onSuccess: () => {
                         showToast(`${type} "${name}" was deleted.`);
-                        setTimeout(() => { window.location.href = `/${pluralType}`; }, 1000);
+                        setTimeout(() => { 
+                            if (window.location.pathname === '/search') {
+                                window.location.reload();
+                            } else {
+                                window.location.href = `/${pluralType}`; 
+                            }
+                        }, 1000);
                     }
                 }).catch(() => {});
             });

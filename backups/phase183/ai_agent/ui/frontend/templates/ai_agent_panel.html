@@ -1,0 +1,129 @@
+<!-- AI Agent Chat Window -->
+<div id="ai-agent-window" class="agent-hidden">
+    <div id="ai-agent-header" style="background: white; padding: 16px 24px; border-bottom: 1px solid #dddbda; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 32px; height: 32px; background: #fcb95b; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.9rem; box-shadow: 0 2px 4px rgba(252,185,91,0.2);">🤖</div>
+            <div class="agent-header-copy">
+                <span style="font-weight: 700; color: #080707; font-size: 1rem; letter-spacing: 0.02em;">AI AGENT</span>
+                <span class="agent-header-subtitle" data-ai-agent-subtitle>English-first CRM copilot for records, follow-ups, and messaging.</span>
+            </div>
+        </div>
+        <div id="ai-agent-header-actions" style="display: flex; gap: 12px; align-items: center;">
+            <div class="agent-language-toggle" role="group" aria-label="AI Agent language">
+                <button id="ai-agent-lang-eng" class="agent-language-btn is-active" type="button" onclick="setAiAgentLanguage('eng')">ENG</button>
+                <button id="ai-agent-lang-kor" class="agent-language-btn" type="button" onclick="setAiAgentLanguage('kor')">KOR</button>
+            </div>
+            <button id="ai-agent-minimize-btn" class="agent-window-control" type="button" onclick="minimizeAiAgent()" aria-label="Minimize AI Agent" title="Minimize AI Agent">&minus;</button>
+            <button id="ai-agent-maximize-btn" class="agent-window-control" type="button" onclick="maximizeAiAgent()" aria-label="Maximize AI Agent" title="Maximize AI Agent">⛶</button>
+            <button id="ai-agent-close-btn" class="agent-window-control agent-window-control-close" type="button" onclick="closeAiAgent()" aria-label="Close AI Agent" title="Close AI Agent">&times;</button>
+            <button id="ai-agent-reset-btn" class="agent-reset-btn" onclick="resetAiAgent()" data-ai-agent-reset-label>Reset Agent</button>
+        </div>
+    </div>
+
+    <div class="ai-agent-main-container">
+        <div class="quick-guide-sidebar">
+            <div class="quick-guide-hero">
+                <p class="quick-guide-kicker" data-ai-guide-kicker>AI Quick Guide</p>
+                <h3 data-ai-guide-title>Start with a clear task</h3>
+                <p data-ai-guide-copy>Start with a direct CRM task, then refine the next step in chat.</p>
+            </div>
+
+            <div class="quick-guide-section">
+                <div class="quick-guide-section-title" data-ai-guide-section-browse>Browse Records</div>
+                <div class="quick-guide-grid">
+                    <button class="quick-btn quick-card" onclick="sendQuickMessage('Show all Leads')"><span class="quick-card-icon">👥</span><span><strong data-ai-guide-all-leads>All Leads</strong><small data-ai-guide-all-leads-copy>Open the latest lead list</small></span></button>
+                    <button class="quick-btn quick-card" onclick="sendQuickMessage('Show all Contacts')"><span class="quick-card-icon">📇</span><span><strong data-ai-guide-all-contacts>All Contacts</strong><small data-ai-guide-all-contacts-copy>Review contact records</small></span></button>
+                    <button class="quick-btn quick-card" onclick="sendQuickMessage('Show all Opportunities')"><span class="quick-card-icon">💼</span><span><strong data-ai-guide-all-opps>All Opportunities</strong><small data-ai-guide-all-opps-copy>See current pipeline items</small></span></button>
+                    <button class="quick-btn quick-card" onclick="sendQuickMessage('Show recent Opportunities')"><span class="quick-card-icon">🕒</span><span><strong data-ai-guide-recent-opps>Recent Opps</strong><small data-ai-guide-recent-opps-copy>Check newly updated deals</small></span></button>
+                </div>
+            </div>
+
+            <div class="quick-guide-section">
+                <div class="quick-guide-section-title" data-ai-guide-section-actions>Agent Actions</div>
+                <div class="quick-guide-grid">
+                    <button class="quick-btn quick-card" onclick="sendQuickMessage('AI Recommend')"><span class="quick-card-icon">✨</span><span><strong data-ai-guide-recommend>AI Recommend</strong><small data-ai-guide-recommend-copy>Surface recommended deals</small></span></button>
+                    <button class="quick-btn quick-card" onclick="sendQuickMessage('Change AI Recommend')"><span class="quick-card-icon">🎨</span><span><strong data-ai-guide-change-recommend>Change AI Recommend</strong><small data-ai-guide-change-recommend-copy>Change the recommendation logic for the home card</small></span></button>
+                    <button class="quick-btn quick-card" onclick="sendQuickMessage('Send Message')"><span class="quick-card-icon">✉️</span><span><strong data-ai-guide-send-message>Send Message</strong><small data-ai-guide-send-message-copy>Open the messaging flow for selected records</small></span></button>
+                    <button class="quick-btn quick-card" onclick="sendQuickMessage('Show my top deals')"><span class="quick-card-icon">🏆</span><span><strong data-ai-guide-top-deals>Top Deals</strong><small data-ai-guide-top-deals-copy>Ask for top-value opportunities</small></span></button>
+                    <button class="quick-btn quick-card" onclick="sendQuickMessage('List my Leads')"><span class="quick-card-icon">📝</span><span><strong data-ai-guide-my-leads>My Leads</strong><small data-ai-guide-my-leads-copy>Get a quick personal list</small></span></button>
+                </div>
+            </div>
+
+            <div class="quick-guide-note">
+                <strong data-ai-guide-examples>Examples</strong>
+                <span data-ai-guide-examples-copy>`create lead` · `show all contacts` · `show the lead I just created` · `delete that contact`</span>
+            </div>
+        </div>
+
+        <div id="ai-agent-body">
+            <div style="text-align: center; color: #706e6b; font-size: 0.75rem; margin-bottom: 20px; font-weight: 500;">CONVERSATION STARTED</div>
+            <div class="msg-agent">
+                <div class="msg-agent-header">
+                    <div class="msg-agent-icon">🤖</div>
+                    <span style="font-size: 0.8rem; font-weight: 700; color: #3e3e3c;">AI AGENT</span>
+                </div>
+                <div class="msg-agent-content">
+                    <div class="msg-agent-text">Hello! I'm your AI Agent. I can help you manage <strong>Leads</strong>, <strong>Contacts</strong>, <strong>Opportunities</strong>, <strong>Products</strong>, and more with natural English commands.</div>
+                    <div class="agent-welcome-tips">
+                        <button class="welcome-tip" onclick="sendQuickMessage('create lead')">Create a lead</button>
+                        <button class="welcome-tip" onclick="sendQuickMessage('show all contacts')">Browse contacts</button>
+                        <button class="welcome-tip" onclick="sendQuickMessage('show the lead I just created')">Open last created record</button>
+                    </div>
+                </div>
+            </div>
+            <div id="ai-agent-selection-bar" class="selection-bar is-hidden" style="display:none!important;" aria-hidden="true">
+                <div class="selection-bar-copy">
+                    <span class="selection-bar-title" data-ai-selection-title>Selection Ready</span>
+                    <span id="ai-agent-selection-summary">No records selected</span>
+                    <span id="ai-agent-selection-detail" class="selection-bar-detail">Select one or more records, then choose Open, Edit, Delete, or Send Message.</span>
+                </div>
+                <div class="selection-bar-actions">
+                    <button class="selection-action-btn" onclick="triggerSelectionOpen()" data-ai-selection-open>Open</button>
+                    <button class="selection-action-btn" onclick="triggerSelectionEdit()" data-ai-selection-edit>Edit</button>
+                    <button class="selection-action-btn selection-action-danger" onclick="triggerSelectionDelete()" data-ai-selection-delete>Delete</button>
+                    <button class="selection-action-btn selection-action-primary" onclick="triggerSelectionMessaging()" data-ai-selection-send>Send Message</button>
+                </div>
+            </div>
+            <div id="ai-agent-workspace" class="agent-workspace agent-hidden">
+                <div class="agent-workspace-header">
+                    <div>
+                        <div class="agent-workspace-kicker">AI Agent Workspace</div>
+                        <strong id="ai-agent-workspace-title">Record View</strong>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button class="control-btn" onclick="triggerWorkspaceEdit()" id="ai-agent-workspace-edit-btn" style="display: none;">Edit</button>
+                        <button class="control-btn" onclick="triggerWorkspaceDelete()" id="ai-agent-workspace-delete-btn" style="display: none; color: var(--error);">Delete</button>
+                        <button class="agent-workspace-close" onclick="closeAgentWorkspace()">&times;</button>
+                    </div>
+                </div>
+                <div id="ai-agent-workspace-loading" class="agent-workspace-loading agent-hidden">Loading...</div>
+                <div id="ai-agent-workspace-content" class="agent-workspace-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="ai-agent-footer">
+        <div class="input-wrapper">
+            <input type="text" id="ai-agent-input" placeholder="Type a message or command..." onkeypress="if(event.key === 'Enter') sendAiMessage()">
+            <button class="send-btn" onclick="sendAiMessage()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="ai-agent-image-modal" class="agent-image-modal agent-hidden">
+    <div class="agent-image-modal-backdrop" onclick="closeAgentImagePreview()"></div>
+    <div class="agent-image-modal-card">
+        <div class="agent-image-modal-header">
+            <strong id="ai-agent-image-title">Template Image</strong>
+            <button class="agent-image-close" onclick="closeAgentImagePreview()">&times;</button>
+        </div>
+        <div class="agent-image-modal-body">
+            <img id="ai-agent-image-preview" alt="Agent preview">
+            <div id="ai-agent-image-fallback" class="agent-image-fallback" style="display: none;">
+                This template image is no longer available. Refresh the template list and try again.
+            </div>
+        </div>
+    </div>
+</div>

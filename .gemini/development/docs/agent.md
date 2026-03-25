@@ -40,7 +40,9 @@ This document is the primary entry point for the active D4 workspace. It absorbs
 - `web/frontend/templates/` and `web/frontend/static/`: server-rendered UI and shared front-end assets.
 - `web/message/backend/` and `web/message/frontend/`: isolated messaging routers, services, providers, and templates.
 - `db/database.py` and `db/models.py`: PostgreSQL engine setup, sessions, and ORM models.
-- `ai_agent/backend/`: AI chat router, orchestration, providers, and conversation context.
+- `ai_agent/llm/backend/`: AI reasoning, intent classification, provider fanout, and conversation context.
+- `ai_agent/ui/backend/`: AI chat router, service orchestration, and integration.
+- `ai_agent/ui/frontend/`: AI agent UI templates and static assets.
 - `test/`: automated tests, manual verification assets, and test-specific notes.
 
 ## Technology Baseline
@@ -48,7 +50,7 @@ This document is the primary entry point for the active D4 workspace. It absorbs
 - **Framework**: FastAPI on Python 3.12.
 - **Data layer**: SQLAlchemy with PostgreSQL via `psycopg`.
 - **Rendering**: Jinja2 templates with vanilla CSS and JavaScript.
-- **AI providers**: Cerebras, Groq, Gemini, and OpenAI are supported by the AI agent layer when configured.
+- **AI providers**: Cerebras and Groq are supported by the AI agent layer.
 - **Testing**: `pytest`, `pytest-asyncio`, and `httpx`.
 
 ## Local Development Notes
@@ -93,7 +95,7 @@ This document is the primary entry point for the active D4 workspace. It absorbs
 - Requests like `show the lead I just created` or `방금 생성한 lead 보여줘` should resolve from the current conversation memory without needing another search step.
 - The selection bar still exists, but lead `Open` and `Edit` actions now route into the pasted chat card pattern so the flow stays inside the conversation window.
 - When a lead is deleted through the AI Agent flow, the success copy should prefer user-meaningful lead details such as name and phone instead of only the raw record ID.
-- AI Agent code organization is moving toward `backend/` and `frontend/` feature folders so `llm`, `recommend`, `messaging`, and object-specific work can evolve with less cross-terminal conflict.
+- AI Agent code organization is moving toward strict `llm` (reasoning) and `ui` (orchestration) separation so intelligence engines and interactive flows can evolve with less cross-terminal conflict.
 - Non-lead objects can still use the workspace fetch path when that remains the more natural UI.
 
 ## Mandatory Rules

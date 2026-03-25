@@ -1,0 +1,7 @@
+# Phase 183 Walkthrough
+
+In this phase, we addressed feedback regarding the AI Agent's interactions and data presentation. 
+
+First, we reviewed the UI-to-Backend deletion flow. Previously, when a user clicked the UI 'Delete' button and confirmed 'Yes', the frontend passed a raw "Delete" query to the backend. The backend, seeing a destructive action, conservatively asked "Are you sure you want to delete this?" again. To resolve this without removing safety rails for natural language commands, we introduced a `[FORCE_DELETE]` protocol. The frontend now automatically appends this flag to the query when the user explicitly clicks `[Yes]` in the UI prompt, allowing the backend to bypass its secondary verification and immediately proceed.
+
+Second, we tackled the table formatting issues where raw UUIDs were showing up for models and names were split into `first_name` and `last_name`. While the fallback `_default_query_parts` already handled these correctly, the AI Agent was sometimes generating manual SQL queries that bypassed these rules. We updated the global `system_prompt` to strictly enforce `AGENT_TABLE_SCHEMAS`, directing the LLM to always use `CONCAT_WS` for the `display_name` and properly `JOIN` the models table to retrieve `model_name`.

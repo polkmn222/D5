@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from db.database import SessionLocal, engine
 from db.models import Opportunity, Contact, Model
-from ai_agent.backend.recommendations import AIRecommendationService
+from ai_agent.llm.backend.recommendations import AIRecommendationService
 from web.backend.app.utils.timezone import get_kst_now_naive
 
 @pytest.fixture

@@ -31,7 +31,7 @@ async def dashboard_view(request: Request, db: Session = Depends(get_db)):
 @handle_agent_errors
 async def get_ai_recommendations(request: Request, db: Session = Depends(get_db)):
     try:
-        from ai_agent.backend.recommendations import AIRecommendationService
+        from ai_agent.llm.backend.recommendations import AIRecommendationService
         recommended_opps = AIRecommendationService.get_sendable_recommendations(db, limit=AIRecommendationService.SENDABLE_RECOMMENDATION_LIMIT)
         current_mode = AIRecommendationService.user_facing_mode_label(AIRecommendationService.get_recommendation_mode())
         
@@ -65,7 +65,7 @@ async def get_ai_agent_panel(request: Request):
 @handle_agent_errors
 async def set_ai_recommendation_mode(request: Request):
     try:
-        from ai_agent.backend.recommendations import AIRecommendationService
+        from ai_agent.llm.backend.recommendations import AIRecommendationService
 
         body = await request.json()
         mode = body.get("mode")
@@ -82,19 +82,42 @@ async def set_ai_recommendation_mode(request: Request):
 @handle_agent_errors
 async def get_search_suggestions(q: str = "", type: str = "all", db: Session = Depends(get_db)):
     try:
-        results = SearchService.global_search(db, q, type, limit=8)
-        return results
+        # We only return the results list for suggestions API
+        search_data = SearchService.global_search(db, q, type, limit=8)
+        return search_data["results"]
     except Exception as e:
         logger.error(f"Suggestions error: {e}")
         return []
 
 @router.get("/search")
 @handle_agent_errors
-async def global_search(request: Request, q: str = "", type: str = "all", db: Session = Depends(get_db)):
+async def global_search(request: Request, q: str = "", type: str = "all", offset: int = 0, ajax: int = 0, db: Session = Depends(get_db)):
     try:
-        logger.debug(f"Entering global_search endpoint with query: {q}, type: {type}")
-        results = SearchService.global_search(db, q, type)
-        return templates.TemplateResponse(request, "search_results.html", {"request": request, "query": q, "results": results})
+        logger.debug(f"Entering global_search endpoint with query: {q}, type: {type}, offset: {offset}")
+        search_data = SearchService.global_search(db, q, type, offset=offset)
+        
+        if ajax:
+            return templates.TemplateResponse(request, "search_results_rows.html", {
+                "request": request,
+                "results": search_data["results"]
+            })
+            
+        return templates.TemplateResponse(request, "search_results.html", {
+            "request": request, 
+            "query": q, 
+            "search_type": type,
+            "results": search_data["results"],
+            "sidebar_counts": search_data["counts"]
+        })
     except Exception as e:
         logger.error(f"Global search error: {e}")
-        return templates.TemplateResponse(request, "search_results.html", {"request": request, "query": q, "results": [], "error": str(e)})
+        if ajax:
+            return HTMLResponse(content="", status_code=500)
+        return templates.TemplateResponse(request, "search_results.html", {
+            "request": request, 
+            "query": q, 
+            "search_type": type,
+            "results": [], 
+            "sidebar_counts": {},
+            "error": str(e)
+        })

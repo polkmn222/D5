@@ -27,7 +27,7 @@ graph TD
 
 - `api/index.py`: repository-root adapter used by Vercel. It inserts `.gemini/development` into `sys.path` and imports `web.backend.app.main:app`.
 - `web/backend/app/main.py`: canonical FastAPI application for local runs and Render.
-- `ai_agent/backend/main.py`: sub-application mounted by the main app at `/ai-agent`.
+- `ai_agent/ui/backend/main.py`: sub-application mounted by the main app at `/ai-agent`.
 
 ## Runtime Layers
 

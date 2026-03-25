@@ -41,7 +41,7 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # Mount AI Agent Sub-app
 try:
-    from ai_agent.backend.main import app as ai_agent_app
+    from ai_agent.ui.backend.main import app as ai_agent_app
     app.mount("/ai-agent", ai_agent_app)
     logger.info("AI Agent sub-app mounted at /ai-agent")
 except ImportError as e:

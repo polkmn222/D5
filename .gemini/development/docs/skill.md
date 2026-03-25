@@ -87,10 +87,10 @@ This document describes the practical implementation guidance for the four activ
 
 ### Scope
 
-- The AI sub-application lives in `ai_agent/backend/` and `ai_agent/frontend/`.
-- `ai_agent/backend/main.py` defines the mounted sub-app.
-- `ai_agent/backend/router.py` exposes `/api/chat`, `/api/reset`, and `/health`.
-- `ai_agent/backend/service.py` orchestrates provider fanout, intent handling, record lookup, and action execution.
+- The AI sub-application lives in `ai_agent/llm/` and `ai_agent/ui/`.
+- `ai_agent/ui/backend/main.py` defines the mounted sub-app.
+- `ai_agent/ui/backend/router.py` exposes `/api/chat`, `/api/reset`, and `/health`.
+- `ai_agent/ui/backend/service.py` orchestrates provider fanout, intent handling, record lookup, and action execution.
 
 ### Core Expectations
 
@@ -106,7 +106,7 @@ This document describes the practical implementation guidance for the four activ
 - Preserve contextual lead edit follow-ups so short field-only replies can update the active lead in chat without restating the record ID.
 - Preserve recent-created lead recall from conversation memory for both English and Korean phrasings such as `show the lead I just created` and `방금 생성한 lead 보여줘`.
 - Keep lead open cards actionable with direct in-chat `Edit` and `Delete` affordances, and prefer user-meaningful lead details in delete success copy.
-- Prefer feature-first AI Agent organization under both `backend/` and `frontend/`, with object-specific folders under `objects/` so multiple terminals can work independently.
+- Prefer feature-first AI Agent organization under both `llm/` and `ui/`, with object-specific folders so multiple terminals can work independently.
 - Preserve the normalized selection payload shape, which may include `labels` even when the incoming selection payload omitted them.
 - Align recent-record and `just created` behavior across docs, pre-classification rules, and tests before changing either the AI flow or the assertions.
 

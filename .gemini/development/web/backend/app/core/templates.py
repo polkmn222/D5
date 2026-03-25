@@ -10,7 +10,7 @@ BASE_DIR = Path(__file__).resolve().parents[3]
 
 FRONTEND_TEMPLATES = BASE_DIR / "frontend" / "templates"
 MESSAGE_TEMPLATES = BASE_DIR / "message" / "frontend" / "templates"
-AI_AGENT_TEMPLATES = BASE_DIR.parent / "ai_agent" / "frontend" / "templates"
+AI_AGENT_TEMPLATES = BASE_DIR.parent / "ai_agent" / "ui" / "frontend" / "templates"
 
 search_paths = [
     str(FRONTEND_TEMPLATES),

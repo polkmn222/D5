@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from db.models import Contact, Opportunity, Model, MessageTemplate, Attachment
 from web.message.backend.services.messaging_service import MessagingService
 from web.backend.app.core.templates import templates
-from ai_agent.backend.recommendations import AIRecommendationService
+from ai_agent.llm.backend.recommendations import AIRecommendationService
 
 logger = logging.getLogger(__name__)
 

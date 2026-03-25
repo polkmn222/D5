@@ -90,8 +90,6 @@ The active project supports two deployment paths that both resolve to the same F
 
 - `CELEBRACE_API_KEY`
 - `GROQ_API_KEY`
-- `GEMINI_API_KEY`
-- `OPENAI_API_KEY`
 
 Not every AI provider key is required at once, but provider-specific features depend on the keys being present.
 

@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block title %}Search Results | GK{% endblock %}
+
+{% block content %}
+<style>
+    .search-container {
+        display: flex;
+        gap: 2rem;
+        padding: 2rem;
+        max-width: 1400px;
+        margin: 0 auto;
+        align-items: flex-start;
+    }
+    
+    /* Sidebar Styling */
+    .search-sidebar {
+        width: 260px;
+        flex-shrink: 0;
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .sidebar-header {
+        padding: 1rem;
+        font-weight: 700;
+        border-bottom: 1px solid var(--border);
+        background: #f8f9fb;
+    }
+    .sidebar-menu {
+        display: flex;
+        flex-direction: column;
+    }
+    .sidebar-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        text-decoration: none;
+        color: var(--text);
+        border-left: 3px solid transparent;
+        transition: all 0.2s;
+        font-size: 0.9rem;
+    }
+    .sidebar-item:hover {
+        background: #f3f3f3;
+    }
+    .sidebar-item.is-active {
+        background: #f0f7ff;
+        border-left-color: #0070d2;
+        font-weight: 600;
+        color: #0070d2;
+        border-radius: 0;
+    }
+    .count-badge {
+        background: #ecebea;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.75rem;
+        color: #3e3e3c;
+    }
+
+    /* Results Styling */
+    .search-main {
+        flex-grow: 1;
+    }
+    .search-section {
+        margin-bottom: 2rem;
+    }
+    .search-section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        background: #f3f3f3;
+        border: 1px solid var(--border);
+        border-bottom: none;
+        border-radius: 4px 4px 0 0;
+    }
+    .search-section-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #16325c;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .type-icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.7rem;
+        font-weight: 700;
+    }
+    .type-lead { background: #49a5e1; }
+    .type-account { background: #7f8de1; }
+    .type-contact { background: #a094ed; }
+    .type-opportunity { background: #fcb95b; }
+    .type-model { background: #3ba755; }
+    .type-brand { background: #e96d6d; }
+    .type-product { background: #9d53f2; }
+    .type-template { background: #2e8b57; }
+    .type-default { background: #666; }
+
+    .sf-view-all-btn {
+        text-decoration: none;
+        color: var(--text);
+        font-weight: 600;
+        background: white;
+        border: 1px solid var(--border);
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 0.8125rem;
+    }
+    .sf-view-all-btn:hover {
+        background: #f3f3f3;
+    }
+</style>
+
+<div class="search-container">
+    <!-- Sidebar -->
+    <aside class="search-sidebar">
+        <div class="sidebar-header">Search Results</div>
+        <div class="sidebar-menu">
+            <a href="/search?q={{ query }}&type=all" class="sidebar-item {{ 'is-active' if search_type == 'all' or not search_type }}">
+                <span>Top Results</span>
+            </a>
+            <a href="/search?q={{ query }}&type=brand" class="sidebar-item {{ 'is-active' if search_type == 'brand' }}">
+                <span>Brands</span>
+                <span class="count-badge">{{ sidebar_counts.get('Brand', 0) }}</span>
+            </a>
+            <a href="/search?q={{ query }}&type=opportunity" class="sidebar-item {{ 'is-active' if search_type == 'opportunity' }}">
+                <span>Opportunities</span>
+                <span class="count-badge">{{ sidebar_counts.get('Opportunity', 0) }}</span>
+            </a>
+            <a href="/search?q={{ query }}&type=contact" class="sidebar-item {{ 'is-active' if search_type == 'contact' }}">
+                <span>Contacts</span>
+                <span class="count-badge">{{ sidebar_counts.get('Contact', 0) }}</span>
+            </a>
+            <a href="/search?q={{ query }}&type=lead" class="sidebar-item {{ 'is-active' if search_type == 'lead' }}">
+                <span>Leads</span>
+                <span class="count-badge">{{ sidebar_counts.get('Lead', 0) }}</span>
+            </a>
+            <a href="/search?q={{ query }}&type=model" class="sidebar-item {{ 'is-active' if search_type == 'model' }}">
+                <span>Models</span>
+                <span class="count-badge">{{ sidebar_counts.get('Model', 0) }}</span>
+            </a>
+            <a href="/search?q={{ query }}&type=product" class="sidebar-item {{ 'is-active' if search_type == 'product' }}">
+                <span>Products</span>
+                <span class="count-badge">{{ sidebar_counts.get('Product', 0) }}</span>
+            </a>
+            <a href="/search?q={{ query }}&type=template" class="sidebar-item {{ 'is-active' if search_type == 'template' }}">
+                <span>Templates</span>
+                <span class="count-badge">{{ sidebar_counts.get('Template', 0) }}</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Results -->
+    <main class="search-main">
+        <div style="margin-bottom: 2rem;">
+            <nav style="font-size: 0.75rem; color: var(--text-label); margin-bottom: 0.5rem;">Global Search</nav>
+            <h1 style="font-size: 1.5rem; font-weight: 700;">
+                {% if search_type == 'all' or not search_type %}Top Results{% else %}{{ search_type|capitalize }} Results{% endif %} for "{{ query }}"
+            </h1>
+            <p style="color: var(--text-label); font-size: 0.875rem;">
+                {% if search_type == 'all' or not search_type %}
+                    {{ sidebar_counts.values()|sum }} records found across all objects
+                {% else %}
+                    {{ sidebar_counts.get(search_type|capitalize, 0) }} records found
+                {% endif %}
+            </p>
+        </div>
+
+        {% if results %}
+        {% set type_urls = {
+            'Lead': '/leads',
+            'Contact': '/contacts',
+            'Opportunity': '/opportunities',
+            'Model': '/models',
+            'Brand': '/vehicle_specifications',
+            'Product': '/products',
+            'Template': '/message_templates'
+        } %}
+        
+        {% for type, items in results|groupby('type') %}
+        <div class="search-section">
+            <div class="search-section-header">
+                <div class="search-section-title">
+                    <div class="type-icon type-{{ type|lower }}">
+                        {{ type[0]|upper }}
+                    </div>
+                    {{ type }}s ({{ sidebar_counts.get(type, items|length) }})
+                </div>
+                {% if type in type_urls %}
+                <a href="{{ type_urls[type] }}" class="btn sf-view-all-btn">View All</a>
+                {% endif %}
+            </div>
+            <div class="sf-card" style="padding: 0; overflow: hidden; border-radius: 0 0 4px 4px; border-top: none;">
+                <table class="sf-table">
+                    <thead>
+                        <tr>
+                            {% if type == 'Lead' %}
+                                <th>NAME</th>
+                                <th>EMAIL</th>
+                                <th>PHONE</th>
+                                <th>STATUS</th>
+                                <th>CREATED</th>
+                            {% elif type == 'Contact' %}
+                                <th>NAME</th>
+                                <th>EMAIL</th>
+                                <th>PHONE</th>
+                                <th>STATUS</th>
+                                <th>CREATED</th>
+                            {% elif type == 'Opportunity' %}
+                                <th>NAME</th>
+                                <th>AMOUNT</th>
+                                <th>STAGE</th>
+                                <th>CLOSE DATE</th>
+                            {% elif type == 'Brand' %}
+                                <th>NAME</th>
+                                <th>TYPE</th>
+                                <th>DESCRIPTION</th>
+                            {% elif type == 'Model' %}
+                                <th>NAME</th>
+                                <th>DESCRIPTION</th>
+                            {% elif type == 'Product' %}
+                                <th>NAME</th>
+                                <th>PRICE</th>
+                                <th>DESCRIPTION</th>
+                            {% elif type == 'Template' %}
+                                <th>NAME</th>
+                                <th>SUBJECT</th>
+                            {% else %}
+                                <th>NAME</th>
+                                <th>INFO</th>
+                            {% endif %}
+                            <th style="width: 100px; text-align: center;">ACTION</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            {% if type == 'Lead' or type == 'Contact' %}
+                                <td style="font-weight: 600;">{{ item.name }}</td>
+                                <td>{{ item.email if item.email else '-' }}</td>
+                                <td>{{ item.phone if item.phone else '-' }}</td>
+                                <td><span class="sf-status-pill">{{ item.status }}</span></td>
+                                <td style="color: var(--text-label); font-size: 0.875rem;">{{ item.created_at if item.created_at else '-' }}</td>
+                            {% elif type == 'Opportunity' %}
+                                <td style="font-weight: 600;">{{ item.name }}</td>
+                                <td>₩{{ item.amount }}</td>
+                                <td><span class="sf-status-pill">{{ item.stage }}</span></td>
+                                <td style="color: var(--text-label); font-size: 0.875rem;">{{ item.close_date if item.close_date else '-' }}</td>
+                            {% elif type == 'Brand' %}
+                                <td style="font-weight: 600;">{{ item.name }}</td>
+                                <td>{{ item.record_type }}</td>
+                                <td style="color: var(--text-label); font-size: 0.875rem;">{{ item.description }}</td>
+                            {% elif type == 'Model' %}
+                                <td style="font-weight: 600;">{{ item.name }}</td>
+                                <td style="color: var(--text-label); font-size: 0.875rem;">{{ item.description }}</td>
+                            {% elif type == 'Product' %}
+                                <td style="font-weight: 600;">{{ item.name }}</td>
+                                <td>₩{{ item.price }}</td>
+                                <td style="color: var(--text-label); font-size: 0.875rem;">{{ item.description if item.description else '-' }}</td>
+                            {% elif type == 'Template' %}
+                                <td style="font-weight: 600;">{{ item.name }}</td>
+                                <td>{{ item.subject }}</td>
+                            {% else %}
+                                <td style="font-weight: 600;">{{ item.name }}</td>
+                                <td style="color: var(--text-label); font-size: 0.875rem;">{{ item.info if item.info else '-' }}</td>
+                            {% endif %}
+                            <td style="text-align: center;">
+                                <a href="{{ item.url }}" class="btn sf-view-all-btn" style="padding: 2px 12px; font-size: 0.8125rem; display: inline-block;">View</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+        
+        {% else %}
+        <div style="text-align: center; padding: 4rem; background: white; border: 1px solid var(--border); border-radius: 8px;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
+            <h3 style="font-size: 1.25rem; font-weight: 600; color: #181818;">No records found</h3>
+            <p style="color: var(--text-label);">Try searching for a different name or phone number.</p>
+            <button class="btn btn-primary" style="margin-top: 1.5rem;" onclick="window.location.href='/'">Go back Home</button>
+        </div>
+        {% endif %}
+    </main>
+</div>
+{% endblock %}

@@ -94,7 +94,7 @@ class DashboardService:
 
         recommendation_mode = "New Records"
         try:
-            from ai_agent.backend.recommendations import AIRecommendationService
+            from ai_agent.llm.backend.recommendations import AIRecommendationService
             recommendation_mode = AIRecommendationService.user_facing_mode_label(AIRecommendationService.get_recommendation_mode())
         except Exception as e:
             logger.error(f"Error fetching AI recommendation mode: {e}")

@@ -1,0 +1,38 @@
+{% for item in results %}
+<tr>
+    {% set type = item.type %}
+    {% if type == 'Lead' or type == 'Contact' %}
+        <td><a href="{{ item.url }}" class="record-link">{{ item.name }}</a></td>
+        <td>{{ item.email if item.email else '-' }}</td>
+        <td>{{ item.phone if item.phone else '-' }}</td>
+        <td><span class="sf-status-pill">{{ item.status }}</span></td>
+        <td style="color: var(--text-label); font-size: 0.875rem;">{{ item.created_at if item.created_at else '-' }}</td>
+    {% elif type == 'Opportunity' %}
+        <td><a href="{{ item.url }}" class="record-link">{{ item.name }}</a></td>
+        <td>₩{{ item.amount }}</td>
+        <td><span class="sf-status-pill">{{ item.stage }}</span></td>
+        <td style="color: var(--text-label); font-size: 0.875rem;">{{ item.close_date if item.close_date else '-' }}</td>
+    {% elif type == 'Brand' %}
+        <td><a href="{{ item.url }}" class="record-link">{{ item.name }}</a></td>
+        <td>{{ item.record_type }}</td>
+        <td style="color: var(--text-label); font-size: 0.875rem;">{{ item.description }}</td>
+    {% elif type == 'Model' %}
+        <td><a href="{{ item.url }}" class="record-link">{{ item.name }}</a></td>
+        <td style="color: var(--text-label); font-size: 0.875rem;">{{ item.description }}</td>
+    {% elif type == 'Product' %}
+        <td><a href="{{ item.url }}" class="record-link">{{ item.name }}</a></td>
+        <td>₩{{ item.price }}</td>
+        <td style="color: var(--text-label); font-size: 0.875rem;">{{ item.description if item.description else '-' }}</td>
+    {% elif type == 'Template' %}
+        <td><a href="{{ item.url }}" class="record-link">{{ item.name }}</a></td>
+        <td>{{ item.subject }}</td>
+    {% else %}
+        <td><a href="{{ item.url }}" class="record-link">{{ item.name }}</a></td>
+        <td style="color: var(--text-label); font-size: 0.875rem;">{{ item.info if item.info else '-' }}</td>
+    {% endif %}
+    <td style="text-align: center; white-space: nowrap;">
+        <button class="btn-action btn-edit" onclick="openModal('{{ item.edit_url }}')">Edit</button>
+        <button class="btn-action btn-danger btn-delete" style="margin-left: 4px;" onclick="confirmDelete('{{ item.type }}', '{{ item.id }}', '{{ item.name|escape }}', '{{ item.plural_type }}')">Delete</button>
+    </td>
+</tr>
+{% endfor %}
