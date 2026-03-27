@@ -1036,6 +1036,13 @@ function removeExistingAgentSchemaForms() {
     document.querySelectorAll('.agent-chat-form-card').forEach(node => node.remove());
 }
 
+function scrollAgentSchemaFormIntoView(target) {
+    if (!target) return;
+    setTimeout(() => {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+}
+
 function appendAgentSchemaFormMessage(text, formSchema) {
     const body = document.getElementById('ai-agent-body');
     if (!body || !formSchema) return;
@@ -1055,6 +1062,7 @@ function appendAgentSchemaFormMessage(text, formSchema) {
         </div>
     `;
     body.appendChild(msgDiv);
+    scrollAgentSchemaFormIntoView(msgDiv);
 }
 
 function appendAgentInlineFormMessage(text, formUrl, formTitle) {
@@ -1415,7 +1423,15 @@ async function submitAgentChatForm(event) {
         }
 
         if (data.intent === 'OPEN_FORM' && data.form?.fields && card) {
-            card.outerHTML = renderAgentInlineSchemaForm(data.form);
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = renderAgentInlineSchemaForm(data.form);
+            const replacementCard = wrapper.firstElementChild;
+            if (replacementCard) {
+                card.replaceWith(replacementCard);
+                scrollAgentSchemaFormIntoView(replacementCard);
+            } else {
+                card.outerHTML = renderAgentInlineSchemaForm(data.form);
+            }
             return false;
         }
 
@@ -1531,6 +1547,10 @@ function triggerSnapshotDelete(objectType, recordId, displayName) {
 
 function shouldUseAgentChatPaste(objectType) {
     return objectType === 'lead';
+}
+
+function shouldUseAgentChatForm(objectType) {
+    return objectType === 'lead' || objectType === 'contact' || objectType === 'opportunity';
 }
 
 function renderResultsTable(results, objectType, pagination = null, originalQuery = null) {
@@ -1973,7 +1993,7 @@ function triggerSelectionEdit() {
         return;
     }
     const label = selection.labels?.[0] || selection.ids[0];
-    if (shouldUseAgentChatPaste(selection.object_type)) {
+    if (shouldUseAgentChatForm(selection.object_type)) {
         sendAiMessageWithDisplay(`Edit ${label}`, `Manage ${selection.object_type} ${selection.ids[0]} edit`);
         return;
     }

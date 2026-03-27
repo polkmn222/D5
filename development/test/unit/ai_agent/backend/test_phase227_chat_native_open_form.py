@@ -154,3 +154,31 @@ def test_ai_agent_frontend_uses_chat_native_form_card_not_workspace_for_schema_f
 
     assert "openAgentWorkspace" not in branch
     assert "appendAgentSchemaFormMessage" in branch
+
+
+def test_ai_agent_frontend_scrolls_chat_native_form_into_view_on_initial_render():
+    source = Path("development/ai_agent/ui/frontend/static/js/ai_agent.js").read_text(encoding="utf-8")
+
+    assert "function scrollAgentSchemaFormIntoView(target) {" in source
+    assert "scrollAgentSchemaFormIntoView(msgDiv);" in source
+    assert "target.scrollIntoView({ behavior: 'smooth', block: 'start' });" in source
+
+
+def test_ai_agent_frontend_scrolls_replaced_form_after_validation_refresh():
+    source = Path("development/ai_agent/ui/frontend/static/js/ai_agent.js").read_text(encoding="utf-8")
+
+    assert "const replacementCard = wrapper.firstElementChild;" in source
+    assert "card.replaceWith(replacementCard);" in source
+    assert "scrollAgentSchemaFormIntoView(replacementCard);" in source
+
+
+def test_ai_agent_frontend_routes_phase_objects_selection_edit_through_chat_forms():
+    source = Path("development/ai_agent/ui/frontend/static/js/ai_agent.js").read_text(encoding="utf-8")
+    edit_start = source.index("function triggerSelectionEdit() {")
+    edit_end = source.index("function triggerSelectionDelete()", edit_start)
+    edit_branch = source[edit_start:edit_end]
+
+    assert "function shouldUseAgentChatForm(objectType) {" in source
+    assert "return objectType === 'lead' || objectType === 'contact' || objectType === 'opportunity';" in source
+    assert "if (shouldUseAgentChatForm(selection.object_type)) {" in edit_branch
+    assert "sendAiMessageWithDisplay(`Edit ${label}`, `Manage ${selection.object_type} ${selection.ids[0]} edit`);" in edit_branch
