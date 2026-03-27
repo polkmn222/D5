@@ -227,6 +227,19 @@ class AiAgentService:
                         {"value": "Junk", "label": "Junk"},
                     ],
                 },
+                {
+                    "name": "gender",
+                    "label": "Gender",
+                    "control": "select",
+                    "default": "",
+                    "options": [
+                        {"value": "", "label": "Unspecified"},
+                        {"value": Gender.MALE.value, "label": Gender.MALE.value},
+                        {"value": Gender.FEMALE.value, "label": Gender.FEMALE.value},
+                        {"value": Gender.OTHER.value, "label": Gender.OTHER.value},
+                        {"value": Gender.UNKNOWN.value, "label": Gender.UNKNOWN.value},
+                    ],
+                },
                 {"name": "website", "label": "Website", "control": "text", "default": ""},
                 {
                     "name": "tier",
@@ -597,10 +610,31 @@ class AiAgentService:
             if key in lead_like:
                 data[key] = lead_like[key]
 
-        stop_words = ["last name", "first name", "status", "email", "phone", "gender", "description", "desc", "note"]
+        stop_words = [
+            "last name",
+            "first name",
+            "status",
+            "email",
+            "phone",
+            "gender",
+            "website",
+            "tier",
+            "description",
+            "desc",
+            "note",
+        ]
         first_name = cls._match_field_value(user_query, ["first name", "firstname"], stop_words)
         if first_name:
             data["first_name"] = first_name
+        gender = cls._match_field_value(user_query, ["gender", "성별"], stop_words)
+        if gender:
+            data["gender"] = gender
+        website = cls._match_field_value(user_query, ["website", "site"], stop_words)
+        if website:
+            data["website"] = website
+        tier = cls._match_field_value(user_query, ["tier"], stop_words)
+        if tier:
+            data["tier"] = tier
 
         return data
 
@@ -654,7 +688,20 @@ class AiAgentService:
     def _has_explicit_phase1_field_hints(cls, object_type: str, user_query: str) -> bool:
         normalized = IntentPreClassifier.normalize(user_query)
         if object_type in {"lead", "contact"}:
-            hints = ["first name", "last name", "email", "phone", "status", "gender", "description", "desc", "note", ":"]
+            hints = [
+                "first name",
+                "last name",
+                "email",
+                "phone",
+                "status",
+                "gender",
+                "website",
+                "tier",
+                "description",
+                "desc",
+                "note",
+                ":",
+            ]
             if any(hint in normalized or hint in user_query for hint in hints):
                 return True
             if re.search(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", user_query):

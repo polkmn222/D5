@@ -56,6 +56,23 @@ async def test_partial_create_contact_prefills_chat_native_form():
 
 
 @pytest.mark.asyncio
+async def test_partial_create_contact_prefills_gender_website_and_tier():
+    response = await AiAgentService.process_query(
+        db=None,
+        user_query="create contact first name Ada status New gender Female website https://example.com tier Gold",
+        conversation_id="phase234-contact-scalars",
+    )
+
+    assert response["intent"] == "OPEN_FORM"
+    field_values = {field["name"]: field.get("value") for field in response["form"]["fields"]}
+    assert field_values["first_name"] == "Ada"
+    assert field_values["status"] == "New"
+    assert field_values["gender"] == "Female"
+    assert field_values["website"] == "https://example.com"
+    assert field_values["tier"] == "Gold"
+
+
+@pytest.mark.asyncio
 async def test_edit_opportunity_returns_prefilled_scalar_only_form():
     opportunity = SimpleNamespace(
         id="OPP227",
@@ -249,6 +266,36 @@ async def test_submit_chat_native_opportunity_edit_validation_error_returns_open
 
 
 @pytest.mark.asyncio
+async def test_edit_contact_chat_native_form_preloads_gender_and_scalar_fields():
+    contact = SimpleNamespace(
+        id="CONTACT234",
+        first_name="Ada",
+        last_name="Kim",
+        email="ada@example.com",
+        phone="01012345678",
+        status="Qualified",
+        gender="Female",
+        website="https://example.com",
+        tier="Gold",
+        description="VIP contact",
+    )
+
+    with patch("web.backend.app.services.contact_service.ContactService.get_contact", return_value=contact):
+        response = await AiAgentService.process_query(
+            db=None,
+            user_query="edit contact CONTACT234",
+            conversation_id="phase234-contact-edit",
+        )
+
+    fields = {field["name"]: field for field in response["form"]["fields"]}
+    assert fields["gender"]["control"] == "select"
+    assert fields["gender"]["value"] == "Female"
+    assert fields["website"]["value"] == "https://example.com"
+    assert fields["tier"]["value"] == "Gold"
+    assert fields["status"]["value"] == "Qualified"
+
+
+@pytest.mark.asyncio
 async def test_submit_chat_native_contact_edit_uses_updated_record_without_extra_refetch():
     contact = SimpleNamespace(
         id="CONTACT232",
@@ -257,6 +304,7 @@ async def test_submit_chat_native_contact_edit_uses_updated_record_without_extra
         email="ada@example.com",
         phone="01012345678",
         status="Qualified",
+        gender="Female",
         website="https://example.com",
         tier="Gold",
         description="VIP contact",
@@ -276,6 +324,9 @@ async def test_submit_chat_native_contact_edit_uses_updated_record_without_extra
                 "email": "ada@example.com",
                 "phone": "01012345678",
                 "status": "Qualified",
+                "gender": "Female",
+                "website": "https://example.com",
+                "tier": "Gold",
             },
             conversation_id="phase232-contact-update",
             language_preference="eng",
@@ -285,6 +336,10 @@ async def test_submit_chat_native_contact_edit_uses_updated_record_without_extra
     assert response["record_id"] == "CONTACT232"
     update_contact.assert_called_once()
     get_contact.assert_not_called()
+    kwargs = update_contact.call_args.kwargs
+    assert kwargs["gender"] == "Female"
+    assert kwargs["website"] == "https://example.com"
+    assert kwargs["tier"] == "Gold"
 
 
 def test_ai_agent_frontend_has_schema_open_form_branch_and_submit_endpoint():
