@@ -136,6 +136,45 @@ async def test_submit_chat_native_opportunity_edit_validation_error_returns_open
     assert response["form"]["field_errors"]["probability"] == "Probability must be between 0 and 100."
 
 
+@pytest.mark.asyncio
+async def test_submit_chat_native_contact_edit_uses_updated_record_without_extra_refetch():
+    contact = SimpleNamespace(
+        id="CONTACT232",
+        first_name="Ada",
+        last_name="Kim",
+        email="ada@example.com",
+        phone="01012345678",
+        status="Qualified",
+        website="https://example.com",
+        tier="Gold",
+        description="VIP contact",
+    )
+
+    with patch("web.backend.app.services.contact_service.ContactService.update_contact", return_value=contact) as update_contact, patch(
+        "web.backend.app.services.contact_service.ContactService.get_contact"
+    ) as get_contact:
+        response = await AiAgentService.submit_chat_native_form(
+            db=None,
+            object_type="contact",
+            mode="edit",
+            record_id="CONTACT232",
+            values={
+                "first_name": "Ada",
+                "last_name": "Kim",
+                "email": "ada@example.com",
+                "phone": "01012345678",
+                "status": "Qualified",
+            },
+            conversation_id="phase232-contact-update",
+            language_preference="eng",
+        )
+
+    assert response["intent"] == "OPEN_RECORD"
+    assert response["record_id"] == "CONTACT232"
+    update_contact.assert_called_once()
+    get_contact.assert_not_called()
+
+
 def test_ai_agent_frontend_has_schema_open_form_branch_and_submit_endpoint():
     source = Path("development/ai_agent/ui/frontend/static/js/ai_agent.js").read_text(encoding="utf-8")
 
@@ -182,3 +221,14 @@ def test_ai_agent_frontend_routes_phase_objects_selection_edit_through_chat_form
     assert "return objectType === 'lead' || objectType === 'contact' || objectType === 'opportunity';" in source
     assert "if (shouldUseAgentChatForm(selection.object_type)) {" in edit_branch
     assert "sendAiMessageWithDisplay(`Edit ${label}`, `Manage ${selection.object_type} ${selection.ids[0]} edit`);" in edit_branch
+
+
+def test_ai_agent_frontend_renders_open_record_feedback_before_workspace_fetch():
+    source = Path("development/ai_agent/ui/frontend/static/js/ai_agent.js").read_text(encoding="utf-8")
+    start = source.index("if (data.intent === 'OPEN_RECORD') {")
+    end = source.index("if (data.intent === 'OPEN_FORM' && data.form?.fields && card) {", start)
+    branch = source[start:end]
+
+    assert "appendChatMessage('agent', data.text" in branch
+    assert "requestAnimationFrame(() => openAgentWorkspace(targetUrl, workspaceTitle));" in branch
+    assert branch.index("appendChatMessage('agent', data.text") < branch.index("requestAnimationFrame(() => openAgentWorkspace(targetUrl, workspaceTitle));")

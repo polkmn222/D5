@@ -481,20 +481,17 @@ class AiAgentService:
 
         if object_type == "lead":
             record = LeadService.update_lead(db, record_id, **cleaned_values)
-            refreshed = LeadService.get_lead(db, record_id)
         elif object_type == "contact":
             record = ContactService.update_contact(db, record_id, **cleaned_values)
-            refreshed = ContactService.get_contact(db, record_id)
         else:
             record = OpportunityService.update_opportunity(db, record_id, **cleaned_values)
-            refreshed = OpportunityService.get_opportunity(db, record_id)
 
-        if not record or not refreshed:
+        if not record:
             return {"intent": "CHAT", "text": f"I couldn't find that {object_type} record."}
         return cls._build_phase1_open_record_response(
             db,
             object_type,
-            refreshed,
+            record,
             conversation_id,
             "update",
             language_preference,

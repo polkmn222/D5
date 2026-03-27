@@ -1412,12 +1412,12 @@ async function submitAgentChatForm(event) {
                 ? getAgentObjectRoute(data.object_type, data.record_id, 'detail')
                 : null;
             const targetUrl = data.redirect_url || fallbackDetailUrl;
-            if (targetUrl) {
-                const workspaceTitle = data.chat_card?.title || data.form_title || 'Record View';
-                openAgentWorkspace(targetUrl, workspaceTitle);
-            }
             if (data.text) {
                 appendChatMessage('agent', data.text, null, data.sql, data.results, data.object_type, data.pagination, data.original_query, data.chat_card);
+            }
+            if (targetUrl) {
+                const workspaceTitle = data.chat_card?.title || data.form_title || 'Record View';
+                requestAnimationFrame(() => openAgentWorkspace(targetUrl, workspaceTitle));
             }
             return false;
         }
