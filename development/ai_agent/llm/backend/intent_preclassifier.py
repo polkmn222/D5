@@ -99,6 +99,27 @@ class IntentPreClassifier:
         return False
 
     @classmethod
+    def normalize_object_type(cls, value: Any) -> Optional[str]:
+        if not value:
+            return None
+        normalized = cls.normalize(str(value))
+        return cls.OBJECT_MAP.get(normalized, normalized if normalized in set(cls.OBJECT_MAP.values()) else None)
+
+    @classmethod
+    def detect_object_mentions(cls, text: str) -> list[str]:
+        normalized = cls.normalize(text)
+        english_tokens = set(re.findall(r"[a-z]+", normalized))
+        objects: list[str] = []
+        for key, value in cls.OBJECT_MAP.items():
+            if re.fullmatch(r"[a-z ]+", key):
+                matched = key in english_tokens if " " not in key else key in normalized
+            else:
+                matched = key in normalized
+            if matched and value not in objects:
+                objects.append(value)
+        return objects
+
+    @classmethod
     def detect(cls, text: str) -> Optional[Dict[str, Any]]:
         if not text:
             return None

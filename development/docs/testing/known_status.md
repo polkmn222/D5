@@ -94,6 +94,20 @@ This file tracks tests that are known to have special behavior, skip conditions,
 | `development/test/unit/agent/test_frontend_contract.py` | Updated | Covers the new command shell, transcript area, object quick actions, and iframe workspace contract under `development/agent/`. |
 | `development/test/unit/agent/test_router.py` | Updated | Covers the new `/agent/api/bootstrap` and `/agent/api/command` endpoints for deterministic command routing. |
 
+## Phase 226 Changes
+
+| Test | Status | Reason |
+|---|---|---|
+| `development/test/unit/web/frontend/test_crm_list_view_contract.py` | Added | Covers shared CRM list-view contracts for lead/contact list shells, list-view controls, selection, bulk-delete affordances, and empty-state behavior. |
+| `development/test/unit/web/frontend/test_crm_detail_view_contract.py` | Added | Covers shared CRM detail-page action contracts, inline-edit affordances, related-tab presence, and related-card empty-state behavior. |
+| `development/test/unit/web/frontend/test_related_list_contract.py` | Added | Covers the shared related-list page contract for Back/New actions, first-column links, optional Actions column, and currency rendering. |
+| `development/test/unit/web/frontend/test_trash_dom_contract.py` | Added | Covers recycle-bin DOM behavior including search, empty state, load-more indicator, and permanent-delete confirmation contract. |
+| `development/test/unit/web/frontend/test_bulk_action_js.py` | Added | Covers shared bulk-delete JavaScript behavior for checkbox selection, delete-button state, confirmation, and shared endpoint wiring. |
+| `development/test/unit/web/backend/app/api/test_trash_router.py` | Added | Covers recycle-bin router behavior for template rendering, error redirect handling, restore redirect, and permanent-delete failure redirect. |
+| `development/test/unit/web/frontend/test_ui_js_logic.py` | Updated | Expanded shared frontend JS coverage to include list-view persistence hooks, bulk-delete wiring, and trash list search/windowing behavior. |
+| `development/test/unit/web/frontend/test_gk_design_system.py` | Updated | Expanded shared web template coverage for related-list and recycle-bin DOM contracts in addition to existing list-view design checks. |
+| `development/test/unit/web/backend/app/api/test_form_router_modals.py` | Updated | Expanded modal-route contract coverage for shared CRM create/edit routes and related-create lookup-prefill behavior. |
+
 ## Current Full Unit Reference
 
 - Command: `PYTHONPATH=development pytest development/test/unit -rs -q`
@@ -111,6 +125,8 @@ This file tracks tests that are known to have special behavior, skip conditions,
 - Last reviewed status: `9 passed`
 - Command: `PYTHONPATH=development pytest development/test/unit/agent/test_runtime_contract.py development/test/unit/agent/test_frontend_contract.py -q`
 - Last reviewed status: `12 passed`
+- Command: `DATABASE_URL=sqlite:///:memory: PYTHONPATH=development pytest development/test/unit/web/frontend/test_ui_js_logic.py development/test/unit/web/frontend/test_gk_design_system.py development/test/unit/web/backend/app/api/test_form_router_modals.py development/test/unit/web/backend/app/api/test_trash_router.py development/test/unit/web/frontend/test_trash_dom_contract.py development/test/unit/web/frontend/test_crm_list_view_contract.py development/test/unit/web/frontend/test_crm_detail_view_contract.py development/test/unit/web/frontend/test_related_list_contract.py development/test/unit/web/frontend/test_bulk_action_js.py -q`
+- Last reviewed status: `42 passed`
 - Command: `PYTHONPATH=development pytest development/test/unit/agent/test_runtime_contract.py development/test/unit/agent/test_frontend_contract.py -q`
 - Last reviewed status: `12 passed`
 
@@ -124,6 +140,7 @@ This file tracks tests that are known to have special behavior, skip conditions,
 
 - There are no currently recorded failing or skipped unit tests in the canonical full-suite run.
 - The mismatches documented in phase 135 and early phase 136 were resolved by aligning tests and test docs to the current runtime contract without changing runtime code.
+- The current shared `web` contract baseline now includes focused unit / DOM-style coverage for shared CRM list/detail/related/trash surfaces, bulk-delete JavaScript, and recycle-bin router behavior outside `ai_agent`.
 
 ## Historical Notes
 

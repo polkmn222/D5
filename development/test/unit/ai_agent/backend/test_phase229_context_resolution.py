@@ -54,3 +54,35 @@ def test_contextual_reference_does_not_silently_cross_objects():
     assert result["intent"] == "CHAT"
     assert result["object_type"] == "contact"
     assert "specific contact record" in result["text"]
+
+
+def test_reasoning_context_includes_last_created_and_selection():
+    conv_id = "phase229-reasoning-context"
+    ConversationContextStore.clear(conv_id)
+    ConversationContextStore.remember_created(conv_id, "lead", "LEAD229D")
+    ConversationContextStore.remember_selection(
+        conv_id,
+        {"object_type": "lead", "ids": ["LEAD229D"], "labels": ["Ada Kim"]},
+    )
+
+    result = ConversationContextStore.build_reasoning_context(conv_id)
+
+    assert result["last_created"] == {"object_type": "lead", "record_id": "LEAD229D"}
+    assert result["selection"]["object_type"] == "lead"
+    assert result["selection"]["record_ids"] == ["LEAD229D"]
+    assert result["selection"]["labels"] == ["Ada Kim"]
+
+
+def test_reasoning_context_marks_selection_conflict():
+    conv_id = "phase229-reasoning-conflict"
+    ConversationContextStore.clear(conv_id)
+    ConversationContextStore.remember_object(conv_id, "lead", "MANAGE", record_id="LEAD229E")
+    ConversationContextStore.remember_selection(
+        conv_id,
+        {"object_type": "contact", "ids": ["CONTACT229E"], "labels": ["Ben Park"]},
+    )
+
+    result = ConversationContextStore.build_reasoning_context(conv_id)
+
+    assert result["safety"]["has_selection_conflict"] is True
+    assert result["safety"]["has_multi_selection"] is False

@@ -1,13 +1,19 @@
 import os
 from pathlib import Path
+import logging
+import time
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import declarative_base, sessionmaker
 
+from web.backend.app.utils.perf_diagnostics import attach_sqlalchemy_instrumentation, diagnostics_enabled
+
 ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
 load_dotenv(ENV_PATH)
+logger = logging.getLogger("web.perf")
+_bootstrap_started_at = time.perf_counter()
 
 def normalize_database_url(raw_url: str) -> str:
     if not raw_url:
@@ -42,6 +48,7 @@ def get_database_url() -> str:
 SQLALCHEMY_DATABASE_URL = normalize_database_url(get_database_url())
 
 engine = build_engine(SQLALCHEMY_DATABASE_URL)
+attach_sqlalchemy_instrumentation(engine)
 
 AUDIT_COLUMN_TABLES = [
     "vehicle_specifications",
@@ -74,6 +81,11 @@ def ensure_runtime_columns() -> None:
 
 
 ensure_runtime_columns()
+if diagnostics_enabled():
+    logger.info(
+        "web_perf_startup component=db_bootstrap duration_ms=%.2f",
+        (time.perf_counter() - _bootstrap_started_at) * 1000,
+    )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

@@ -53,6 +53,16 @@ def test_home_send_message_template_modal_defers_upload_until_save():
     assert "await uploadPendingTemplateModalImage();" in source
 
 
+def test_home_send_message_ui_gates_demo_relay_availability_before_send():
+    source = Path("development/web/message/frontend/templates/send_message.html").read_text(encoding="utf-8")
+
+    assert 'id="demo-relay-status-banner"' in source
+    assert 'id="demo-message-send-btn"' in source
+    assert "fetch('/messaging/demo-availability')" in source
+    assert "ensureDemoRelayAvailability()" in source
+    assert "Demo message service unavailable. Contact the administrator." in source
+
+
 def test_static_template_manager_defers_upload_until_save():
     source = Path("development/web/frontend/static/js/messaging.js").read_text(encoding="utf-8")
 

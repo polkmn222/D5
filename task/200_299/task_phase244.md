@@ -1,0 +1,22 @@
+## Phase 244 Task Record
+
+- Approved phase: lead-only post-submit chat continuity optimization.
+- Object scope: `lead` only.
+- In scope:
+  - keep the newest result visible in the latest chat area after lead create/edit save
+  - auto-scroll to the newest active chat area
+  - prevent attention from being yanked back to an older workspace area
+  - improve ChatGPT-style downward continuity for the lead chat-form submit path
+- Out of scope:
+  - broader approved-object rollout
+  - broad UI redesign
+  - field parity
+  - lookup parity
+  - validation redesign
+  - removing workspace compatibility entirely
+- Constraints:
+  - frontend-first
+  - unit tests only
+  - no manual testing
+  - no commit
+  - no push

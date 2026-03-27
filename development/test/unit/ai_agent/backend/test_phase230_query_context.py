@@ -151,3 +151,35 @@ def test_ranked_follow_up_does_not_cross_objects():
     assert result is not None
     assert result["intent"] == "CHAT"
     assert "shows leads, not contacts" in result["text"]
+
+
+def test_reasoning_context_includes_recent_query_results():
+    conv_id = "phase230-reasoning-query-context"
+    ConversationContextStore.clear(conv_id)
+    ConversationContextStore.remember_query_results(
+        conv_id,
+        "contact",
+        [
+            {"id": "CONTACT230CTX1", "display_name": "Ada Kim"},
+            {"id": "CONTACT230CTX2", "display_name": "Ben Park"},
+        ],
+    )
+
+    result = ConversationContextStore.build_reasoning_context(conv_id)
+
+    assert result["query_results"]["object_type"] == "contact"
+    assert result["query_results"]["count"] == 2
+    assert result["query_results"]["results"][0]["record_id"] == "CONTACT230CTX1"
+
+
+def test_reasoning_context_marks_multi_selection():
+    conv_id = "phase230-reasoning-multi-selection"
+    ConversationContextStore.clear(conv_id)
+    ConversationContextStore.remember_selection(
+        conv_id,
+        {"object_type": "contact", "ids": ["CONTACT230S1", "CONTACT230S2"], "labels": ["Ada Kim", "Ben Park"]},
+    )
+
+    result = ConversationContextStore.build_reasoning_context(conv_id)
+
+    assert result["safety"]["has_multi_selection"] is True

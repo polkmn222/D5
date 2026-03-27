@@ -16,6 +16,8 @@ LIST_VIEW_FILES = [
     "development/web/frontend/templates/list_view.html",
 ]
 JS_LIST_VIEWS_PATH = "development/web/frontend/static/js/list_views.js"
+RELATED_LIST_VIEW_PATH = "development/web/frontend/templates/related/list_view.html"
+TRASH_LIST_VIEW_PATH = "development/web/frontend/templates/trash/list_view.html"
 
 def _read(path: str) -> str:
     with open(path, "r") as f:
@@ -49,3 +51,19 @@ class TestGKDesignSystem:
     def test_js_list_views_has_propagation_fix(self):
         js = _read(JS_LIST_VIEWS_PATH)
         assert 'event.stopPropagation(); window.${removeFilterFunctionName}(this)' in js
+
+    def test_related_list_template_keeps_back_new_and_linked_first_column_contract(self):
+        html = _read(RELATED_LIST_VIEW_PATH)
+        assert "Related List" in html
+        assert 'href="{{ back_url }}"' in html
+        assert "openModal('{{ new_url }}')" in html
+        assert "class=\"sf-link\"" in html
+        assert "{% if show_actions %}<th style=\"width: 120px;\">Actions</th>{% endif %}" in html
+
+    def test_trash_list_template_has_empty_and_loading_states(self):
+        html = _read(TRASH_LIST_VIEW_PATH)
+        assert "Recycle Bin" in html
+        assert "The Recycle Bin is empty." in html
+        assert "id=\"trash-load-more\"" in html
+        assert "class=\"sf-spinner-small\"" in html
+        assert "confirmPermanentDelete" in html

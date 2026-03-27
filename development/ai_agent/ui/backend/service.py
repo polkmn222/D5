@@ -262,6 +262,46 @@ class AiAgentService:
             "submit_create": "Create Opportunity",
             "submit_edit": "Save Opportunity",
             "fields": [
+                {
+                    "name": "contact",
+                    "label": "Contact",
+                    "control": "lookup",
+                    "lookup_object": "Contact",
+                    "default": "",
+                    "placeholder": "Search Contact...",
+                },
+                {
+                    "name": "brand",
+                    "label": "Brand",
+                    "control": "lookup",
+                    "lookup_object": "Brand",
+                    "default": "",
+                    "placeholder": "Search Brand...",
+                },
+                {
+                    "name": "model",
+                    "label": "Model",
+                    "control": "lookup",
+                    "lookup_object": "Model",
+                    "default": "",
+                    "placeholder": "Search Model...",
+                },
+                {
+                    "name": "product",
+                    "label": "Product",
+                    "control": "lookup",
+                    "lookup_object": "Product",
+                    "default": "",
+                    "placeholder": "Search Product...",
+                },
+                {
+                    "name": "asset",
+                    "label": "Asset",
+                    "control": "lookup",
+                    "lookup_object": "Asset",
+                    "default": "",
+                    "placeholder": "Search Asset...",
+                },
                 {"name": "name", "label": "Name", "control": "text", "default": "", "required": True},
                 {"name": "amount", "label": "Amount", "control": "number", "default": "", "required": True},
                 {
@@ -348,6 +388,50 @@ class AiAgentService:
         }
 
     @classmethod
+    def _contact_display_name(cls, contact: Any) -> str:
+        if not contact:
+            return ""
+        return " ".join(
+            part for part in [getattr(contact, "first_name", None), getattr(contact, "last_name", None)] if part
+        ).strip() or str(getattr(contact, "name", "") or "")
+
+    @classmethod
+    def _opportunity_lookup_display_values(
+        cls,
+        db: Optional[Session],
+        values: Dict[str, Any],
+    ) -> Dict[str, str]:
+        brand_id = values.get("brand")
+        model_id = values.get("model")
+        product_id = values.get("product")
+        asset_id = values.get("asset")
+        contact_id = values.get("contact")
+        display_values = {"contact": "", "brand": "", "model": "", "product": "", "asset": ""}
+        try:
+            if contact_id:
+                contact = ContactService.get_contact(db, contact_id)
+                display_values["contact"] = cls._contact_display_name(contact)
+            if brand_id:
+                brand = VehicleSpecService.get_vehicle_spec(db, brand_id)
+                display_values["brand"] = str(getattr(brand, "name", "") or "")
+            if model_id:
+                model = ModelService.get_model(db, model_id)
+                display_values["model"] = str(getattr(model, "name", "") or "")
+            if product_id:
+                from web.backend.app.services.product_service import ProductService
+
+                product = ProductService.get_product(db, product_id)
+                display_values["product"] = str(getattr(product, "name", "") or "")
+            if asset_id:
+                from web.backend.app.services.asset_service import AssetService
+
+                asset = AssetService.get_asset(db, asset_id)
+                display_values["asset"] = str(getattr(asset, "name", "") or "")
+        except Exception:
+            return display_values
+        return display_values
+
+    @classmethod
     def _build_chat_native_form_response(
         cls,
         *,
@@ -368,12 +452,19 @@ class AiAgentService:
         title = config["title_create"] if mode == "create" else f"{config['title_edit']} {display_title or record_id or ''}".strip()
         submit_label = config["submit_create"] if mode == "create" else config["submit_edit"]
         is_korean = (language_preference or "").lower() == "kor"
-        text = (
-            f"{object_type.replace('_', ' ').title()} {'생성' if mode == 'create' else '수정'} 폼을 대화 안에 열었습니다."
-            if is_korean else
-            f"I opened the {object_type.replace('_', ' ')} {mode} form here in chat."
+        text = cls._chat_native_form_opening_text(
+            object_type=object_type,
+            mode=mode,
+            is_korean=is_korean,
+            display_title=display_title,
+            record_id=record_id,
         )
-        lookup_display_values = cls._lead_lookup_display_values(db, values) if object_type == "lead" else {}
+        if object_type == "lead":
+            lookup_display_values = cls._lead_lookup_display_values(db, values)
+        elif object_type == "opportunity":
+            lookup_display_values = cls._opportunity_lookup_display_values(db, values)
+        else:
+            lookup_display_values = {}
         schema_fields: List[Dict[str, Any]] = []
         for field in config["fields"]:
             schema_field = {
@@ -401,7 +492,7 @@ class AiAgentService:
             mode=mode,
             record_id=record_id,
             title=title,
-            description="Fill in the fields below, then save.",
+            description=cls._chat_native_form_description(mode=mode, is_korean=is_korean),
             submit_label=submit_label,
             cancel_label="Cancel",
             required_fields=cls._phase1_required_fields(object_type),
@@ -420,6 +511,46 @@ class AiAgentService:
             "form": form,
             "score": 1.0,
         }
+
+    @staticmethod
+    def _chat_native_form_opening_text(
+        *,
+        object_type: str,
+        mode: str,
+        is_korean: bool,
+        display_title: Optional[str] = None,
+        record_id: Optional[str] = None,
+    ) -> str:
+        object_label = object_type.replace("_", " ")
+        if mode == "edit":
+            target = display_title or record_id or ""
+            if is_korean:
+                suffix = f" **{target}**" if target else ""
+                return (
+                    f"{object_label.title()}{suffix} 수정 폼을 대화 안에 열었습니다. "
+                    "바꿀 내용을 수정한 다음 저장해 주세요."
+                )
+            suffix = f" for **{target}**" if target else ""
+            return (
+                f"I opened the {object_label} edit form{suffix} here in chat. "
+                "Update the fields you want, then save your changes."
+            )
+
+        if is_korean:
+            return (
+                f"{object_label.title()} 생성 폼을 대화 안에 열었습니다. "
+                "입력할 내용을 채운 다음 저장해 주세요."
+            )
+        return (
+            f"I opened the {object_label} create form here in chat. "
+            "Fill in the fields you want, then save it."
+        )
+
+    @staticmethod
+    def _chat_native_form_description(*, mode: str, is_korean: bool) -> str:
+        if mode == "edit":
+            return "바꿀 내용을 아래에서 수정한 다음 저장해 주세요." if is_korean else "Update the fields below, then save your changes."
+        return "아래 필드를 입력한 다음 저장해 주세요." if is_korean else "Fill in the fields below, then save."
 
     @classmethod
     def _coerce_chat_form_values(cls, object_type: str, values: Dict[str, Any]) -> Dict[str, Any]:
@@ -738,34 +869,215 @@ class AiAgentService:
 
     @classmethod
     def _build_contact_chat_card(cls, contact: Any) -> Dict[str, Any]:
+        name = cls._phase1_display_title("contact", contact)
+        status = cls._display_value(getattr(contact, "status", None))
+        fields = [
+            {"label": "First name", "value": cls._display_value(getattr(contact, "first_name", None))},
+            {"label": "Last name", "value": cls._display_value(getattr(contact, "last_name", None))},
+            {"label": "Status", "value": status},
+            {"label": "Email", "value": cls._display_value(getattr(contact, "email", None))},
+            {"label": "Phone", "value": cls._display_value(getattr(contact, "phone", None))},
+        ]
         return {
             "type": "record_paste",
             "object_type": "contact",
-            "title": cls._phase1_display_title("contact", contact),
+            "paste_label": f"Pasted ~{2 + len(fields)} lines",
+            "title": name,
+            "subtitle": f"Contact · {status}",
             "record_id": str(getattr(contact, "id", "")),
-            "fields": [
-                {"label": "First name", "value": cls._display_value(getattr(contact, "first_name", None))},
-                {"label": "Last name", "value": cls._display_value(getattr(contact, "last_name", None))},
-                {"label": "Email", "value": cls._display_value(getattr(contact, "email", None))},
-                {"label": "Phone", "value": cls._display_value(getattr(contact, "phone", None))},
-                {"label": "Status", "value": cls._display_value(getattr(contact, "status", None))},
+            "fields": fields,
+            "actions": [
+                {"label": "Open Record", "action": "open", "tone": "primary"},
+                {"label": "Edit", "action": "edit", "tone": "secondary"},
+                {"label": "Delete", "action": "delete", "tone": "danger"},
+                {"label": "Send Message", "action": "send_message", "tone": "secondary"},
             ],
+            "hint": "Reply with `edit this contact` to keep updating in chat, ask to open the full record, or send a message.",
         }
 
     @classmethod
     def _build_opportunity_chat_card(cls, opportunity: Any) -> Dict[str, Any]:
+        title = cls._phase1_display_title("opportunity", opportunity)
+        stage = cls._display_value(getattr(opportunity, "stage", None))
+        fields = [
+            {"label": "Name", "value": cls._display_value(getattr(opportunity, "name", None))},
+            {"label": "Stage", "value": stage},
+            {"label": "Status", "value": cls._display_value(getattr(opportunity, "status", None))},
+            {"label": "Amount", "value": cls._display_value(getattr(opportunity, "amount", None))},
+            {"label": "Probability", "value": cls._display_value(getattr(opportunity, "probability", None))},
+        ]
         return {
             "type": "record_paste",
             "object_type": "opportunity",
-            "title": cls._phase1_display_title("opportunity", opportunity),
+            "paste_label": f"Pasted ~{2 + len(fields)} lines",
+            "title": title,
+            "subtitle": f"Opportunity · {stage}",
             "record_id": str(getattr(opportunity, "id", "")),
-            "fields": [
-                {"label": "Name", "value": cls._display_value(getattr(opportunity, "name", None))},
-                {"label": "Stage", "value": cls._display_value(getattr(opportunity, "stage", None))},
-                {"label": "Amount", "value": cls._display_value(getattr(opportunity, "amount", None))},
-                {"label": "Probability", "value": cls._display_value(getattr(opportunity, "probability", None))},
-                {"label": "Status", "value": cls._display_value(getattr(opportunity, "status", None))},
+            "fields": fields,
+            "actions": [
+                {"label": "Open Record", "action": "open", "tone": "primary"},
+                {"label": "Edit", "action": "edit", "tone": "secondary"},
+                {"label": "Delete", "action": "delete", "tone": "danger"},
+                {"label": "Send Message", "action": "send_message", "tone": "secondary"},
             ],
+            "hint": "Reply with `edit this opportunity` to keep updating in chat, ask to open the full record, or send a message.",
+        }
+
+    @classmethod
+    def _build_product_chat_card(cls, db: Session, product: Any) -> Dict[str, Any]:
+        brand = VehicleSpecService.get_vehicle_spec(db, getattr(product, "brand", None)) if getattr(product, "brand", None) else None
+        model = ModelService.get_model(db, getattr(product, "model", None)) if getattr(product, "model", None) else None
+        title = cls._display_value(getattr(product, "name", None)) or str(getattr(product, "id", "Unnamed Product"))
+        category = cls._display_value(getattr(product, "category", None))
+        fields = [
+            {"label": "Name", "value": title},
+            {"label": "Category", "value": category},
+            {"label": "Brand", "value": cls._display_value(getattr(brand, "name", None))},
+            {"label": "Model", "value": cls._display_value(getattr(model, "name", None))},
+            {"label": "Base Price", "value": cls._display_value(getattr(product, "base_price", None))},
+        ]
+        return {
+            "type": "record_paste",
+            "object_type": "product",
+            "paste_label": f"Pasted ~{2 + len(fields)} lines",
+            "title": title,
+            "subtitle": f"Product · {category}",
+            "record_id": str(getattr(product, "id", "")),
+            "fields": fields,
+            "actions": [
+                {"label": "Open Record", "action": "open", "tone": "primary"},
+                {"label": "Edit", "action": "edit", "tone": "secondary"},
+                {"label": "Delete", "action": "delete", "tone": "danger"},
+            ],
+            "hint": "Reply with `edit this product` to update it, or ask to open the full record.",
+        }
+
+    @classmethod
+    def _build_asset_chat_card(cls, db: Session, asset: Any) -> Dict[str, Any]:
+        from web.backend.app.services.product_service import ProductService
+
+        product = ProductService.get_product(db, getattr(asset, "product", None)) if getattr(asset, "product", None) else None
+        brand = VehicleSpecService.get_vehicle_spec(db, getattr(asset, "brand", None)) if getattr(asset, "brand", None) else None
+        model = ModelService.get_model(db, getattr(asset, "model", None)) if getattr(asset, "model", None) else None
+        title = (
+            cls._display_value(getattr(asset, "name", None))
+            or cls._display_value(getattr(asset, "vin", None))
+            or str(getattr(asset, "id", "Unnamed Asset"))
+        )
+        status = cls._display_value(getattr(asset, "status", None))
+        fields = [
+            {"label": "Name", "value": cls._display_value(getattr(asset, "name", None))},
+            {"label": "VIN", "value": cls._display_value(getattr(asset, "vin", None))},
+            {"label": "Status", "value": status},
+            {"label": "Product", "value": cls._display_value(getattr(product, "name", None))},
+            {"label": "Brand", "value": cls._display_value(getattr(brand, "name", None))},
+            {"label": "Model", "value": cls._display_value(getattr(model, "name", None))},
+        ]
+        return {
+            "type": "record_paste",
+            "object_type": "asset",
+            "paste_label": f"Pasted ~{2 + len(fields)} lines",
+            "title": title,
+            "subtitle": f"Asset · {status}",
+            "record_id": str(getattr(asset, "id", "")),
+            "fields": fields,
+            "actions": [
+                {"label": "Open Record", "action": "open", "tone": "primary"},
+                {"label": "Edit", "action": "edit", "tone": "secondary"},
+                {"label": "Delete", "action": "delete", "tone": "danger"},
+            ],
+            "hint": "Reply with `edit this asset` to update it, or ask to open the full record.",
+        }
+
+    @classmethod
+    def _build_brand_chat_card(cls, db: Session, brand: Any) -> Dict[str, Any]:
+        title = cls._display_value(getattr(brand, "name", None)) or str(getattr(brand, "id", "Unnamed Brand"))
+        record_type = cls._display_value(getattr(brand, "record_type", None))
+        fields = [
+            {"label": "Name", "value": title},
+            {"label": "Type", "value": record_type},
+            {"label": "Description", "value": cls._display_value(getattr(brand, "description", None))},
+        ]
+        return {
+            "type": "record_paste",
+            "object_type": "brand",
+            "paste_label": f"Pasted ~{2 + len(fields)} lines",
+            "title": title,
+            "subtitle": f"Brand · {record_type}",
+            "record_id": str(getattr(brand, "id", "")),
+            "fields": fields,
+            "actions": [
+                {"label": "Open Record", "action": "open", "tone": "primary"},
+                {"label": "Edit", "action": "edit", "tone": "secondary"},
+                {"label": "Delete", "action": "delete", "tone": "danger"},
+            ],
+            "hint": "Reply with `edit this brand` to update it, or ask to open the full record.",
+        }
+
+    @classmethod
+    def _build_model_chat_card(cls, db: Session, model: Any) -> Dict[str, Any]:
+        brand = VehicleSpecService.get_vehicle_spec(db, getattr(model, "brand", None)) if getattr(model, "brand", None) else None
+        title = cls._display_value(getattr(model, "name", None)) or str(getattr(model, "id", "Unnamed Model"))
+        fields = [
+            {"label": "Name", "value": title},
+            {"label": "Brand", "value": cls._display_value(getattr(brand, "name", None))},
+            {"label": "Description", "value": cls._display_value(getattr(model, "description", None))},
+        ]
+        return {
+            "type": "record_paste",
+            "object_type": "model",
+            "paste_label": f"Pasted ~{2 + len(fields)} lines",
+            "title": title,
+            "subtitle": f"Model · {cls._display_value(getattr(brand, 'name', None))}",
+            "record_id": str(getattr(model, "id", "")),
+            "fields": fields,
+            "actions": [
+                {"label": "Open Record", "action": "open", "tone": "primary"},
+                {"label": "Edit", "action": "edit", "tone": "secondary"},
+                {"label": "Delete", "action": "delete", "tone": "danger"},
+            ],
+            "hint": "Reply with `edit this model` to update it, or ask to open the full record.",
+        }
+
+    @classmethod
+    def _safe_template_preview_url(cls, template: Any) -> Optional[str]:
+        for value in (getattr(template, "image_url", None), getattr(template, "file_path", None)):
+            if isinstance(value, str) and value.startswith("/static/"):
+                return value
+        return None
+
+    @classmethod
+    def _build_message_template_chat_card(cls, template: Any) -> Dict[str, Any]:
+        title = cls._display_value(getattr(template, "name", None)) or str(getattr(template, "id", "Unnamed Template"))
+        record_type = cls._display_value(getattr(template, "record_type", None))
+        preview_url = cls._safe_template_preview_url(template)
+        fields = [
+            {"label": "Name", "value": title},
+            {"label": "Type", "value": record_type},
+            {"label": "Subject", "value": cls._display_value(getattr(template, "subject", None))},
+            {"label": "Content", "value": cls._display_value(getattr(template, "content", None))},
+            {"label": "Image", "value": "Available" if preview_url else ""},
+        ]
+        actions = [
+            {"label": "Open Record", "action": "open", "tone": "primary"},
+        ]
+        if preview_url:
+            actions.append({"label": "Preview Image", "action": "preview_image", "tone": "secondary", "url": preview_url})
+        actions.append({"label": "Use In Send Message", "action": "use_in_send", "tone": "secondary"})
+        return {
+            "type": "record_paste",
+            "object_type": "message_template",
+            "paste_label": f"Pasted ~{2 + len(fields)} lines",
+            "title": title,
+            "subtitle": f"Template · {record_type}",
+            "record_id": str(getattr(template, "id", "")),
+            "fields": fields,
+            "actions": actions,
+            "hint": (
+                "Preview the image or use this template in Send Message."
+                if preview_url else
+                "Use this template in Send Message or open the full record."
+            ),
         }
 
     @classmethod
@@ -849,6 +1161,7 @@ class AiAgentService:
     @classmethod
     def _resolve_phase1_deterministic_request(
         cls,
+        db: Optional[Session],
         user_query: str,
         conversation_id: Optional[str],
         language_preference: Optional[str],
@@ -914,14 +1227,20 @@ class AiAgentService:
                         "score": 1.0,
                         "language_preference": language_preference,
                     }
-                return {
-                    "intent": "OPEN_FORM",
-                    "object_type": object_type,
-                    "record_id": explicit_record_id,
-                    "form_url": cls._phase1_form_url(object_type, explicit_record_id),
-                    "score": 1.0,
-                    "language_preference": language_preference,
-                }
+                record = cls._get_phase1_record(db, object_type, explicit_record_id)
+                if not record:
+                    return {
+                        "intent": "CHAT",
+                        "object_type": object_type,
+                        "text": f"I couldn't find that {object_type} record.",
+                        "score": 1.0,
+                    }
+                return cls._build_phase1_edit_form_response(
+                    object_type,
+                    record,
+                    language_preference,
+                    db=db,
+                )
             return {
                 "intent": "MANAGE",
                 "object_type": object_type,
@@ -935,6 +1254,28 @@ class AiAgentService:
                 "intent": "CHAT",
                 "object_type": object_type,
                 "text": f"I can update that {object_type}, but I need the record ID first.",
+                "score": 1.0,
+            }
+
+        return None
+
+    @classmethod
+    def _resolve_send_history_query_request(cls, user_query: str) -> Optional[Dict[str, Any]]:
+        normalized = IntentPreClassifier.normalize(user_query)
+        has_query = IntentPreClassifier._contains_action(normalized, list(cls.GENERIC_QUERY_ACTIONS))
+        has_read = IntentPreClassifier._contains_action(normalized, list(cls.GENERIC_READ_ACTIONS))
+        has_recent_query = any(marker in normalized for marker in cls.RECENT_QUERY_MARKERS)
+        references_messages = re.search(r"\bmessages?\b", normalized) is not None
+
+        if not references_messages:
+            return None
+
+        if has_query or has_read or normalized in {"message", "messages", "recent message", "recent messages"}:
+            query_data = {"query_mode": "recent"} if has_recent_query else {}
+            return {
+                "intent": "QUERY",
+                "object_type": "message_send",
+                "data": query_data,
                 "score": 1.0,
             }
 
@@ -1229,6 +1570,7 @@ class AiAgentService:
     @classmethod
     def _resolve_explicit_lead_record_request(
         cls,
+        db: Optional[Session],
         user_query: str,
         language_preference: Optional[str],
     ) -> Optional[Dict[str, Any]]:
@@ -1257,27 +1599,29 @@ class AiAgentService:
             }
 
         if action in cls.LEAD_EDIT_ACTIONS:
-            return {
-                "intent": "OPEN_FORM",
-                "object_type": "lead",
-                "record_id": record_id,
-                "form_url": f"/leads/new-modal?id={record_id}",
-                "score": 1.0,
-                "language_preference": language_preference,
-            }
+            lead = LeadService.get_lead(db, record_id)
+            if not lead:
+                return {"intent": "CHAT", "object_type": "lead", "text": "I couldn't find that lead record.", "score": 1.0}
+            return cls._build_phase1_edit_form_response(
+                "lead",
+                lead,
+                language_preference,
+                db=db,
+            )
 
         if action in cls.LEAD_UPDATE_ACTIONS:
             update_source = trailing_text or user_query
             data = cls._extract_lead_update_fields_from_text(update_source)
             if not data:
-                return {
-                    "intent": "OPEN_FORM",
-                    "object_type": "lead",
-                    "record_id": record_id,
-                    "form_url": f"/leads/new-modal?id={record_id}",
-                    "score": 1.0,
-                    "language_preference": language_preference,
-                }
+                lead = LeadService.get_lead(db, record_id)
+                if not lead:
+                    return {"intent": "CHAT", "object_type": "lead", "text": "I couldn't find that lead record.", "score": 1.0}
+                return cls._build_phase1_edit_form_response(
+                    "lead",
+                    lead,
+                    language_preference,
+                    db=db,
+                )
             return {
                 "intent": "UPDATE",
                 "object_type": "lead",
@@ -1511,15 +1855,15 @@ class AiAgentService:
         hint = (
             "Reply with the fields to change, like `status Qualified`, `phone 01012345678`, or `email kim@test.com`."
             if mode == "edit" else
-            "Reply with `edit this lead` to keep updating in chat, or ask to send a message."
+            "Reply with `edit this lead` to keep updating in chat, ask to open the full record, or send a message."
         )
         actions = []
         if mode == "view":
             actions = [
                 {"label": "Open Record", "action": "open", "tone": "primary"},
                 {"label": "Edit", "action": "edit", "tone": "secondary"},
-                {"label": "Send Message", "action": "send_message", "tone": "secondary"},
                 {"label": "Delete", "action": "delete", "tone": "danger"},
+                {"label": "Send Message", "action": "send_message", "tone": "secondary"},
             ]
 
         return {
@@ -2088,6 +2432,7 @@ class AiAgentService:
             )
 
         explicit_lead_record_resolution = cls._resolve_explicit_lead_record_request(
+            db,
             user_query,
             language_preference,
         )
@@ -2192,6 +2537,7 @@ class AiAgentService:
             return await cls._execute_intent(db, contextual_response, user_query, conversation_id=conversation_id, page=page, per_page=per_page)
 
         phase1_resolution = cls._resolve_phase1_deterministic_request(
+            db,
             user_query,
             conversation_id,
             language_preference,
@@ -2234,6 +2580,18 @@ class AiAgentService:
                 per_page=per_page,
             )
 
+        send_history_resolution = cls._resolve_send_history_query_request(user_query)
+        if send_history_resolution:
+            send_history_resolution["language_preference"] = language_preference
+            return await cls._execute_intent(
+                db,
+                send_history_resolution,
+                user_query,
+                conversation_id=conversation_id,
+                page=page,
+                per_page=per_page,
+            )
+
         clarification = IntentReasoner.clarify_if_needed(user_query)
         if clarification:
             return clarification
@@ -2251,74 +2609,12 @@ class AiAgentService:
             return await cls._execute_intent(db, rule_based, user_query, conversation_id=conversation_id, page=page, per_page=per_page)
 
         metadata = cls._get_metadata()
-        
-        system_prompt = f"""
-        You are the "AI Agent" for an Automotive CRM (D4). 
-        DATABASE SCHEMA:
-        {metadata}
-        
-        OBJECTIVE:
-        Operate all functions in D4 based on natural language or interactive requests.
-        Only provide answers based on D4 information.
-        Support both English and Korean languages natively. Detect user language and respond in the same language.
-        UI language preference: {language_preference or 'auto'}.
-        If UI language preference is `eng`, answer in English.
-        If UI language preference is `kor`, answer in Korean.
-        
-        CONVERSATIONAL CONTEXT:
-        - You must remember the previous turn's intent. 
-        - If a user provides a single word (e.g., "New", "박상열") in response to your question, interpret it within the context of the previous request.
-        - For Korean names like "박상열", map it to `last_name` (mandatory) if you only have one name string.
-        
-        CONVERSATIONAL CREATE FLOW:
-        - If a user wants to CREATE a record (lead, contact, opportunity, brand, model, product, asset, template) but hasn't provided mandatory info:
-          1. Use intent "CHAT".
-          2. Acknowledge the request.
-          3. Politely ask for missing info.
-             - Lead/Contact: needs at least "last_name" and "status".
-             - Asset: needs "vin".
-             - Template: needs "name" and "content".
-          4. Do NOT use intent "CREATE" until you have the mandatory fields.
-        
-        QUERY FLOW:
-        - When searching for "recent" or "just created" records, generate a SQL with `ORDER BY created_at DESC LIMIT 1`.
-        - Always filter by `deleted_at IS NULL`.
-        - Mapping: "messages" should query the `message_sends` table.
-        - Attachments: These are system-internal files. Do NOT list them unless explicitly asked about files linked to a specific record.
-        
-        INTERACTIVE MANAGE FLOW:
-        - When you receive "Manage [ObjectType] [RecordID]":
-          1. Use intent "MANAGE".
-          2. Describe the record.
-          3. List available fields using bracket format (e.g., "[First Name]", "[Status]").
-          4. Ask for the next action.
-        
-        DELETE FLOW:
-        - Use intent "DELETE" immediately if the user provides a record ID (e.g., "Delete lead 123") or confirms deletion (e.g., "Yes").
-        - The UI already handles final confirmations. Proceed directly to the deletion without asking "Are you sure?" again.
-        
-        TABLE DATA STANDARDS:
-        - For all record displays (QUERY, CREATE, UPDATE, MANAGE): You MUST strictly follow the AGENT_TABLE_SCHEMAS.
-        - Leads/Contacts: You MUST use `TRIM(CONCAT_WS(' ', first_name, last_name)) AS display_name`.
-        - All lookup fields shown to users MUST use readable names, never raw IDs.
-        - Leads/Opportunities/Assets/Products: You MUST JOIN with the `models` table to provide `model` (e.g. GV80) instead of raw UUIDs.
-        - Your `SELECT` fields MUST match exactly with the frontend schemas:
-          - Lead: display_name, phone, status, model, created_at
-          - Contact: display_name, phone, email, tier, created_at
-          - Opportunity: name, contact_display_name, contact_phone, stage, amount, model
-        - Always return the `id` field in SQL queries as the first column.
-        
-        RESPONSE FORMAT (Strict JSON):
-        {{
-            "intent": "QUERY" | "CREATE" | "UPDATE" | "DELETE" | "MANAGE" | "CHAT" | "RECOMMEND" | "MODIFY_UI",
-            "text": "Helpful response here",
-            "sql": "SELECT ... (if QUERY)",
-            "data": {{ "field": "value" }} (if CREATE/UPDATE),
-            "object_type": "lead" | "contact" | "opportunity" | "brand" | "model" | "product" | "asset" | "message_template" | "message_send",
-            "record_id": "ID_HERE",
-            "score": 0.0 to 1.0 (confidence in this JSON)
-        }}
-        """
+        reasoning_context = ConversationContextStore.build_reasoning_context(conversation_id, selection)
+        system_prompt = IntentReasoner.build_reasoning_prompt(
+            metadata,
+            language_preference,
+            reasoning_context,
+        )
 
         # Call Multi-LLM Ensemble
         agent_output = await cls._call_multi_llm_ensemble(user_query, system_prompt)
@@ -2355,6 +2651,11 @@ class AiAgentService:
                 agent_output["object_type"] = match.group(1).lower()
                 agent_output["record_id"] = match.group(2)
 
+        agent_output = IntentReasoner.validate_reasoning_output(
+            agent_output,
+            user_query,
+            reasoning_context,
+        )
         agent_output = cls._apply_contextual_record_id(agent_output, conversation_id)
 
         agent_output["language_preference"] = language_preference
@@ -2708,12 +3009,84 @@ class AiAgentService:
             elif obj in ["opportunity", "opportunities", "opps"]:
                 opp = OpportunityService.get_opportunity(db, record_id)
                 if opp: record_details = f"Opportunity: {opp.name} ({opp.stage} - ₩{opp.amount})"
+            elif obj in ["product", "products"]:
+                from web.backend.app.services.product_service import ProductService
+
+                product = ProductService.get_product(db, record_id)
+                if product:
+                    title = cls._display_value(getattr(product, "name", None)) or str(getattr(product, "id", "Unnamed Product"))
+                    return build_object_open_record_response(
+                        object_type="product",
+                        record_id=record_id,
+                        redirect_url=f"/products/{record_id}",
+                        title=title,
+                        action="manage",
+                        conversation_id=conversation_id,
+                        language_preference=agent_output.get("language_preference"),
+                        chat_card=cls._build_product_chat_card(db, product),
+                    )
+            elif obj in ["asset", "assets"]:
+                from web.backend.app.services.asset_service import AssetService
+
+                asset = AssetService.get_asset(db, record_id)
+                if asset:
+                    title = (
+                        cls._display_value(getattr(asset, "name", None))
+                        or cls._display_value(getattr(asset, "vin", None))
+                        or str(getattr(asset, "id", "Unnamed Asset"))
+                    )
+                    return build_object_open_record_response(
+                        object_type="asset",
+                        record_id=record_id,
+                        redirect_url=f"/assets/{record_id}",
+                        title=title,
+                        action="manage",
+                        conversation_id=conversation_id,
+                        language_preference=agent_output.get("language_preference"),
+                        chat_card=cls._build_asset_chat_card(db, asset),
+                    )
+            elif obj in ["brand", "brands"]:
+                brand = VehicleSpecService.get_vehicle_spec(db, record_id)
+                if brand:
+                    title = cls._display_value(getattr(brand, "name", None)) or str(getattr(brand, "id", "Unnamed Brand"))
+                    return build_object_open_record_response(
+                        object_type="brand",
+                        record_id=record_id,
+                        redirect_url=f"/vehicle_specifications/{record_id}",
+                        title=title,
+                        action="manage",
+                        conversation_id=conversation_id,
+                        language_preference=agent_output.get("language_preference"),
+                        chat_card=cls._build_brand_chat_card(db, brand),
+                    )
+            elif obj in ["model", "models"]:
+                model = ModelService.get_model(db, record_id)
+                if model:
+                    title = cls._display_value(getattr(model, "name", None)) or str(getattr(model, "id", "Unnamed Model"))
+                    return build_object_open_record_response(
+                        object_type="model",
+                        record_id=record_id,
+                        redirect_url=f"/models/{record_id}",
+                        title=title,
+                        action="manage",
+                        conversation_id=conversation_id,
+                        language_preference=agent_output.get("language_preference"),
+                        chat_card=cls._build_model_chat_card(db, model),
+                    )
             elif obj in ["message_template", "template"]:
                 template = MessageTemplateService.get_template(db, record_id)
                 if template:
-                    template_image_url = getattr(template, "image_url", None)
-                    image_note = " with image" if template_image_url else ""
-                    record_details = f"Template: {template.name} ({template.subject}){image_note}"
+                    title = cls._display_value(getattr(template, "name", None)) or str(getattr(template, "id", "Unnamed Template"))
+                    return build_object_open_record_response(
+                        object_type="message_template",
+                        record_id=record_id,
+                        redirect_url=f"/message_templates/{record_id}",
+                        title=title,
+                        action="manage",
+                        conversation_id=conversation_id,
+                        language_preference=agent_output.get("language_preference"),
+                        chat_card=cls._build_message_template_chat_card(template),
+                    )
             
             if record_details:
                 if obj in ["lead", "leads"] and agent_output.get("chat_card"):

@@ -81,6 +81,66 @@ class ConversationContextStore:
         }
 
     @classmethod
+    def build_reasoning_context(
+        cls,
+        conversation_id: Optional[str],
+        selection: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        context = cls.get_context(conversation_id)
+        selection_payload = selection or context.get("selection") or {}
+        selection_ids = list(selection_payload.get("ids") or [])
+        selection_labels = list(selection_payload.get("labels") or [])
+        query_results = list((context.get("last_query_results") or [])[:5])
+        last_created = dict(context.get("last_created") or {})
+        last_record = {
+            "object_type": context.get("last_object"),
+            "record_id": context.get("last_record_id"),
+        }
+        selection_object_type = selection_payload.get("object_type")
+        query_object_type = context.get("last_query_object")
+        has_selection_conflict = bool(
+            last_record.get("object_type")
+            and selection_object_type
+            and selection_ids
+            and (
+                last_record.get("object_type") != selection_object_type
+                or (
+                    len(selection_ids) == 1
+                    and last_record.get("record_id")
+                    and last_record.get("record_id") != selection_ids[0]
+                )
+            )
+        )
+        return {
+            "conversation_id": conversation_id,
+            "last_intent": context.get("last_intent"),
+            "last_created": last_created,
+            "last_record": last_record,
+            "selection": {
+                "object_type": selection_object_type,
+                "record_ids": selection_ids,
+                "labels": selection_labels,
+                "count": len(selection_ids),
+            },
+            "query_results": {
+                "object_type": query_object_type,
+                "results": query_results,
+                "count": len(query_results),
+            },
+            "safety": {
+                "has_selection_conflict": has_selection_conflict,
+                "has_multi_selection": len(selection_ids) > 1,
+                "has_query_results": bool(query_results),
+                "query_result_count": len(query_results),
+                "last_created_matches_last_record": bool(
+                    last_created.get("object_type") == last_record.get("object_type")
+                    and last_created.get("record_id")
+                    and last_created.get("record_id") == last_record.get("record_id")
+                ),
+            },
+        }
+
+    @classmethod
     def remember_pending_delete(
         cls,
         conversation_id: Optional[str],

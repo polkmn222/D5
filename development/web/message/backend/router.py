@@ -1,9 +1,11 @@
 from typing import Optional
 import logging
 import os
+from urllib.parse import urlparse, urlunparse
 from fastapi import APIRouter, Depends, Request, File, UploadFile, Header
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
+import httpx
 from db.database import get_db
 from web.backend.app.services.opportunity_service import OpportunityService
 from web.message.backend.services.message_template_service import MessageTemplateService
@@ -20,6 +22,7 @@ from ai_agent.llm.backend.recommendations import AIRecommendationService
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/messaging", tags=["Messaging"])
+DEMO_UNAVAILABLE_MESSAGE = "Demo message service unavailable. Contact the administrator."
 
 
 def _serialize_messaging_recommendations(db: Session, recommended_opps, limit: int = 5):
@@ -79,6 +82,90 @@ class RelayDispatchRequest(BaseModel):
     attachment_provider_key: Optional[str] = None
     image_url: Optional[str] = None
 
+
+def _demo_unavailable_response(reason: Optional[str] = None) -> dict:
+    return {
+        "available": False,
+        "message": DEMO_UNAVAILABLE_MESSAGE,
+        "reason": reason or "relay_unavailable",
+    }
+
+
+def _validate_bearer_token(authorization: Optional[str], expected_token: str) -> bool:
+    incoming_token = (authorization or "").removeprefix("Bearer ").strip()
+    return bool(expected_token) and incoming_token == expected_token
+
+
+def _relay_target_provider() -> str:
+    return os.getenv("RELAY_TARGET_PROVIDER", "").strip().lower() or "solapi"
+
+
+def _provider_ready_for_demo(provider_name: str) -> tuple[bool, Optional[str]]:
+    if provider_name == "relay":
+        return False, "relay_target_cannot_be_relay"
+    if provider_name == "solapi":
+        required = {
+            "SOLAPI_API_KEY": os.getenv("SOLAPI_API_KEY", "").strip(),
+            "SOLAPI_API_SECRET": os.getenv("SOLAPI_API_SECRET", "").strip(),
+            "SOLAPI_SENDER_NUMBER": os.getenv("SOLAPI_SENDER_NUMBER", "").strip(),
+        }
+        missing = [name for name, value in required.items() if not value]
+        if missing:
+            return False, f"missing_demo_provider_env:{','.join(missing)}"
+    if provider_name == "slack" and not os.getenv("SLACK_MESSAGE_WEBHOOK_URL", "").strip():
+        return False, "missing_demo_provider_env:SLACK_MESSAGE_WEBHOOK_URL"
+    return True, None
+
+
+def _derive_demo_relay_health_url(endpoint: str) -> Optional[str]:
+    endpoint = (endpoint or "").strip()
+    if not endpoint:
+        return None
+
+    parsed = urlparse(endpoint)
+    if not parsed.scheme or not parsed.netloc:
+        return None
+
+    relay_path = parsed.path.rstrip("/")
+    if not relay_path.endswith("/messaging/relay-dispatch"):
+        return None
+
+    health_path = f"{relay_path[:-len('/relay-dispatch')]}/demo-relay-health"
+    return urlunparse(parsed._replace(path=health_path, params="", query="", fragment=""))
+
+
+def _check_remote_demo_relay_health(endpoint: str, token: str) -> dict:
+    health_url = _derive_demo_relay_health_url(endpoint)
+    if not health_url:
+        return _demo_unavailable_response("invalid_relay_endpoint")
+
+    headers = {"Authorization": f"Bearer {token}"}
+    try:
+        with httpx.Client() as client:
+            response = client.get(health_url, headers=headers, timeout=3)
+    except Exception as exc:
+        logger.warning("Demo relay availability probe failed: %s", exc)
+        return _demo_unavailable_response("relay_health_unreachable")
+
+    if response.status_code >= 400:
+        return _demo_unavailable_response(f"relay_health_http_{response.status_code}")
+
+    try:
+        payload = response.json()
+    except ValueError:
+        return _demo_unavailable_response("relay_health_invalid_json")
+
+    if not payload.get("available"):
+        return _demo_unavailable_response(payload.get("reason") or "relay_unavailable")
+
+    return {
+        "available": True,
+        "message": "",
+        "reason": None,
+        "provider": payload.get("provider"),
+        "mode": "relay",
+    }
+
 @router.post("/send")
 async def send_message_endpoint(data: MessageSendRequest, db: Session = Depends(get_db)):
     try:
@@ -119,6 +206,53 @@ async def provider_status():
         logger.error(f"Error reading provider status: {e}")
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
+
+@router.get("/demo-relay-health")
+async def demo_relay_health(authorization: Optional[str] = Header(default=None)):
+    expected_token = os.getenv("RELAY_MESSAGE_TOKEN", "").strip()
+    if not expected_token:
+        return JSONResponse(status_code=503, content=_demo_unavailable_response("relay_token_not_configured"))
+
+    if not _validate_bearer_token(authorization, expected_token):
+        return JSONResponse(status_code=403, content=_demo_unavailable_response("invalid_relay_token"))
+
+    target_provider = _relay_target_provider()
+    provider_ready, reason = _provider_ready_for_demo(target_provider)
+    if not provider_ready:
+        return JSONResponse(status_code=503, content=_demo_unavailable_response(reason))
+
+    return {
+        "available": True,
+        "message": "",
+        "reason": None,
+        "provider": target_provider,
+    }
+
+
+@router.get("/demo-availability")
+async def demo_availability():
+    provider_name = MessageProviderFactory.get_provider_name()
+    if provider_name != "relay":
+        return {
+            "available": True,
+            "message": "",
+            "reason": None,
+            "mode": "direct",
+            "provider": provider_name,
+        }
+
+    endpoint = os.getenv("RELAY_MESSAGE_ENDPOINT", "").strip()
+    token = os.getenv("RELAY_MESSAGE_TOKEN", "").strip()
+    if not endpoint:
+        return _demo_unavailable_response("relay_endpoint_not_configured")
+    if not token:
+        return _demo_unavailable_response("relay_token_not_configured")
+
+    relay_status = _check_remote_demo_relay_health(endpoint, token)
+    relay_status["provider"] = relay_status.get("provider") or provider_name
+    relay_status["mode"] = "relay"
+    return relay_status
+
 @router.post("/relay-dispatch")
 async def relay_dispatch(
     data: RelayDispatchRequest,
@@ -130,11 +264,10 @@ async def relay_dispatch(
         if not expected_token:
             return JSONResponse(status_code=500, content={"status": "error", "message": "RELAY_MESSAGE_TOKEN is not configured."})
 
-        incoming_token = (authorization or "").removeprefix("Bearer ").strip()
-        if incoming_token != expected_token:
+        if not _validate_bearer_token(authorization, expected_token):
             return JSONResponse(status_code=403, content={"status": "error", "message": "Invalid relay token."})
 
-        target_provider = os.getenv("RELAY_TARGET_PROVIDER", "").strip().lower() or "solapi"
+        target_provider = _relay_target_provider()
         if target_provider == "relay":
             return JSONResponse(status_code=400, content={"status": "error", "message": "RELAY_TARGET_PROVIDER cannot be relay."})
 

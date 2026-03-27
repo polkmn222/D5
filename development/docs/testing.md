@@ -9,6 +9,9 @@ This document is the active testing policy for the D5 repository.
 - Unit tests are mandatory for any code change that affects logic, behavior, routing, parsing, data flow, or response contracts.
 - Manual testing is forbidden.
 - Do not treat manual browser checks, local click-throughs, or ad hoc API poking as acceptable verification.
+- UI or frontend behavior changes must use unit tests plus narrow DOM-level UI tests for the changed UI behavior only.
+- Non-UI phases should use unit tests only unless the user explicitly asks for a different test type.
+- Browser automation is not part of the default workflow and must not be added unless the user explicitly approves it later.
 - Documentation-only tasks do not require unit test execution unless the user explicitly asks for it.
 - SQLite compatibility is not a project goal.
 - PostgreSQL is the only supported database target for any DB-backed test.
@@ -70,6 +73,7 @@ The future generalized `development/ai_agent` CRUD surface must cover:
 - Prefer focused unit suites over broad unfocused runs.
 - Use `PYTHONPATH=development`.
 - Pure unit tests should prefer mocks and should avoid real DB dependence entirely.
+- Keep DOM-level frontend tests minimal, AI-agent-specific, and behavior-specific when a UI phase changes continuity, scrolling, or visible focus behavior.
 - Any test that exercises repository code, ORM behavior, persistence, schema constraints, or query behavior must be marked and run as an integration test.
 - DB-backed tests must use `TEST_DATABASE_URL` and PostgreSQL only.
 - Do not use `DATABASE_URL=sqlite:///:memory:` for integration coverage.

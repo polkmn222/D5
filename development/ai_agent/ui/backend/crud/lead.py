@@ -17,9 +17,9 @@ def build_lead_edit_form_response(
         "form_title": f"Edit {lead_name}",
         "form_kind": "lead_edit",
         "text": (
-            f"리드 **{lead_name}** 수정 폼을 여기 대화창에 띄웠어요. 바로 수정하고 저장해 주세요."
+            f"Lead **{lead_name}** 수정 폼을 대화 안에 열었습니다. 바꿀 내용을 수정한 다음 저장해 주세요."
             if is_korean else
-            f"I opened the edit form for **{lead_name}** here in chat. Update the fields you want, then save it."
+            f"I opened the lead edit form for **{lead_name}** here in chat. Update the fields you want, then save your changes."
         ),
         "score": 1.0,
     }
@@ -41,9 +41,9 @@ def build_lead_open_record_response(
 
     if action == "create":
         text = (
-            f"리드 **{lead_name}**이(가) 생성되었습니다! 🎉\n아래에서 상세 내용을 바로 확인하세요. 수정이나 메시지 전송이 필요하면 바로 말씀해 주세요."
+            f"리드 **{lead_name}** 레코드가 생성되었고 아래에 열려 있습니다. 필드 수정이나 메시지 전송이 필요하면 바로 말씀해 주세요."
             if is_korean else
-            f"Lead **{lead_name}** has been created! 🎉\nThe record is now open below. Tell me if you'd like to update a field, send a message, or do anything else."
+            f"Lead **{lead_name}** has been created. The record is open below. Tell me if you'd like to update a field or send a message."
         )
         if conversation_id:
             ConversationContextStore.clear_pending_create(conversation_id)
@@ -51,17 +51,17 @@ def build_lead_open_record_response(
             ConversationContextStore.remember_object(conversation_id, "lead", "CREATE", record_id=lead_id)
     elif action == "update":
         text = (
-            f"리드 **{lead_name}** 정보가 업데이트되었습니다! ✅\n최신 상세 내용이 아래에 열려 있어요. 추가로 수정할 내용이 있으면 바로 말씀해 주세요."
+            f"리드 **{lead_name}** 레코드가 업데이트되었고 최신 정보가 아래에 열려 있습니다. 추가로 수정할 내용이 있으면 바로 말씀해 주세요."
             if is_korean else
-            f"Lead **{lead_name}** has been updated! ✅\nThe refreshed record is open below. Let me know if you need any other changes."
+            f"Lead **{lead_name}** has been updated. The refreshed record is open below. Let me know if you need any other changes."
         )
         if conversation_id:
             ConversationContextStore.remember_object(conversation_id, "lead", "UPDATE", record_id=lead_id)
     else:
         text = (
-            f"리드 **{lead_name}** 상세 정보가 아래에 열려 있어요. 수정, 메시지 전송, 또는 다른 작업이 필요하면 바로 말씀해 주세요."
+            f"리드 **{lead_name}** 레코드가 아래에 열려 있습니다. 수정, 메시지 전송, 또는 다른 작업이 필요하면 바로 말씀해 주세요."
             if is_korean else
-            f"Lead **{lead_name}** is now open. You can update any field, send a message, or take any action — just tell me what you need."
+            f"Lead **{lead_name}** is now open. You can update a field, send a message, or ask for another action."
         )
         if conversation_id:
             ConversationContextStore.remember_object(conversation_id, "lead", "MANAGE", record_id=lead_id)

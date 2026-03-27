@@ -221,7 +221,8 @@
                 
                 <!-- Action Buttons: Aligned with 300px outer phone width -->
                 <div style="display: flex; flex-direction: column; gap: 0.75rem; width: 300px; margin-top: 1rem;">
-                    <button class="btn btn-primary" onclick="sendMessage()" style="width: 100%; padding: 0.85rem; font-weight: 700; font-size: 1rem; box-shadow: 0 4px 6px rgba(1, 118, 211, 0.2);">Send Message</button>
+                    <div id="demo-relay-status-banner" style="display: none; padding: 0.85rem 1rem; border-radius: 10px; background: #fff6f6; border: 1px solid #f2c7c7; color: #7b2d2f; font-size: 0.82rem; line-height: 1.45;"></div>
+                    <button id="demo-message-send-btn" class="btn btn-primary" onclick="sendMessage()" style="width: 100%; padding: 0.85rem; font-weight: 700; font-size: 1rem; box-shadow: 0 4px 6px rgba(1, 118, 211, 0.2);">Send Message</button>
                     <button class="btn" onclick="openPreviewModal()" style="width: 100%; background: #f0f7ff; color: #0176d3; border: 1px solid #0176d3; padding: 0.6rem; font-weight: 600;">Preview Message</button>
                     <button class="btn" style="width: 100%; background: white; border: 1px solid var(--border); padding: 0.6rem;" onclick="clearAll()">Clear All</button>
                 </div>
@@ -1348,7 +1349,85 @@
         return true;
     }
 
+    const demoRelayAvailabilityState = {
+        checked: false,
+        available: false,
+        message: "Checking demo message service availability...",
+    };
+
+    function applyDemoRelayAvailabilityState() {
+        const sendButton = document.getElementById('demo-message-send-btn');
+        const banner = document.getElementById('demo-relay-status-banner');
+        if (!sendButton || !banner) return;
+
+        if (!demoRelayAvailabilityState.checked) {
+            sendButton.disabled = true;
+            sendButton.style.opacity = '0.65';
+            sendButton.style.cursor = 'not-allowed';
+            banner.style.display = 'block';
+            banner.style.background = '#f5f8ff';
+            banner.style.borderColor = '#d7e3f5';
+            banner.style.color = '#35506b';
+            banner.innerText = demoRelayAvailabilityState.message;
+            return;
+        }
+
+        sendButton.disabled = !demoRelayAvailabilityState.available;
+        sendButton.style.opacity = demoRelayAvailabilityState.available ? '1' : '0.65';
+        sendButton.style.cursor = demoRelayAvailabilityState.available ? 'pointer' : 'not-allowed';
+        sendButton.title = demoRelayAvailabilityState.available ? '' : demoRelayAvailabilityState.message;
+
+        if (demoRelayAvailabilityState.available) {
+            banner.style.display = 'none';
+            banner.innerText = '';
+            return;
+        }
+
+        banner.style.display = 'block';
+        banner.style.background = '#fff6f6';
+        banner.style.borderColor = '#f2c7c7';
+        banner.style.color = '#7b2d2f';
+        banner.innerText = demoRelayAvailabilityState.message;
+    }
+
+    async function refreshDemoRelayAvailability() {
+        demoRelayAvailabilityState.checked = false;
+        demoRelayAvailabilityState.available = false;
+        demoRelayAvailabilityState.message = 'Checking demo message service availability...';
+        applyDemoRelayAvailabilityState();
+
+        try {
+            const response = await fetch('/messaging/demo-availability');
+            const payload = await response.json();
+            demoRelayAvailabilityState.checked = true;
+            demoRelayAvailabilityState.available = Boolean(payload.available);
+            demoRelayAvailabilityState.message = payload.message || 'Demo message service unavailable. Contact the administrator.';
+        } catch (error) {
+            console.error('Demo relay availability error:', error);
+            demoRelayAvailabilityState.checked = true;
+            demoRelayAvailabilityState.available = false;
+            demoRelayAvailabilityState.message = 'Demo message service unavailable. Contact the administrator.';
+        }
+
+        applyDemoRelayAvailabilityState();
+    }
+
+    function ensureDemoRelayAvailability() {
+        if (!demoRelayAvailabilityState.checked) {
+            showToast('Checking demo message service availability. Please wait a moment.', true);
+            return false;
+        }
+        if (!demoRelayAvailabilityState.available) {
+            showToast(demoRelayAvailabilityState.message || 'Demo message service unavailable. Contact the administrator.', true);
+            return false;
+        }
+        return true;
+    }
+
     async function sendPreparedMessages(recipients, messageConfig, meta = {}) {
+        if (!ensureDemoRelayAvailability()) {
+            return;
+        }
         if (!recipients.length) {
             showToast("Please select at least one recipient.", true);
             return;
@@ -1435,6 +1514,9 @@
     }
 
     async function sendMessage() {
+        if (!ensureDemoRelayAvailability()) {
+            return;
+        }
         const recipients = getSelectedRecipientsDetailed();
         if (recipients.length === 0) {
             showToast("Please select at least one recipient.", true);
@@ -1822,6 +1904,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        refreshDemoRelayAvailability();
         updateCharLimit();
         initializeAiAgentSelection();
         initializeAiAgentTemplate();

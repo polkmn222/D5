@@ -28,5 +28,15 @@ def test_edit_lead_no_id_suggests_selection():
     assert res["intent"] == "CHAT"
     assert "select it" in res["text"]
 
+def test_normalize_object_type_handles_aliases():
+    assert IntentPreClassifier.normalize_object_type("contacts") == "contact"
+    assert IntentPreClassifier.normalize_object_type("message template") == "message_template"
+    assert IntentPreClassifier.normalize_object_type("unknown-object") is None
+
+
+def test_detect_object_mentions_returns_distinct_objects():
+    assert IntentPreClassifier.detect_object_mentions("show lead and contact") == ["lead", "contact"]
+    assert IntentPreClassifier.detect_object_mentions("templates") == ["message_template"]
+
 if __name__ == "__main__":
     pytest.main([__file__])

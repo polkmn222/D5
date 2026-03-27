@@ -32,6 +32,12 @@ The preferred execution order is:
 
 Deterministic handling should be attempted before LLM fallback.
 
+## Delivery Strategy
+
+- Prefer object-by-object completion over tiny feature slices spread across many objects.
+- When improving chat-native UX, finish the next smallest coherent gap for the current object before broadening to another object.
+- Keep phases narrow, but prioritize user-visible completeness for the active object path.
+
 ## Service Reuse Rule
 
 Reuse existing D5 services where possible:
@@ -104,6 +110,8 @@ At minimum:
 - `OPEN_RECORD` should point the UI at the correct detail target
 - `OPEN_FORM` should point the UI at the correct create or edit form target
 
+For approved chat-native objects, continuity should prefer the latest active chat area first and preserve workspace compatibility without letting the workspace steal visible focus.
+
 ## Ambiguous Or Unsupported Requests
 
 If the request is ambiguous, unsupported, or too complex for deterministic handling:
@@ -124,6 +132,7 @@ If the user intent cannot be safely resolved, the agent should ask for clarifica
 - `all leads` returns list-view-style results
 - incomplete requests such as `create lead` use `OPEN_FORM` by design
 - deterministic create requires `last_name` and `status`
+- current chat-first continuity rollout includes submit-path continuity, non-submit `OPEN_RECORD` continuity, and selection `Open` continuity
 
 ### Contact
 
@@ -132,6 +141,8 @@ If the user intent cannot be safely resolved, the agent should ask for clarifica
 - `all contacts` returns list-view-style results
 - incomplete requests such as `create contact` use `OPEN_FORM` by design
 - deterministic create requires `last_name` and `status`
+- current chat-first continuity rollout includes submit-path continuity, non-submit `OPEN_RECORD` continuity, and selection `Open` continuity
+- current contact chat cards expose `Open Record`, `Edit`, `Delete`, and `Send Message`
 
 ### Opportunity
 
@@ -140,36 +151,48 @@ If the user intent cannot be safely resolved, the agent should ask for clarifica
 - `recent opportunities` and `all opportunities` return list-view-style results
 - incomplete requests such as `create opportunity` use `OPEN_FORM` by design
 - deterministic create requires `name`, `stage`, and `amount`
+- current chat-first continuity rollout includes submit-path continuity, non-submit `OPEN_RECORD` continuity, and selection `Open` continuity
+- current opportunity chat cards expose `Open Record`, `Edit`, `Delete`, and `Send Message`
 
 ### Product
 
 - create success opens the new product record
 - update success opens the refreshed product record
 - `all products` returns list-view-style results
+- current grouped-object rollout starts with product non-submit `OPEN_RECORD` continuity and selection `Open` continuity
 
 ### Asset
 
 - create success opens the new asset record
 - update success opens the refreshed asset record
 - `all assets` returns list-view-style results
+- current grouped-object rollout now includes asset non-submit `OPEN_RECORD` continuity and selection `Open` continuity
 
 ### Brand
 
 - create success opens the new brand record
 - update success opens the refreshed brand record
 - `all brands` returns list-view-style results
+- current grouped-object rollout now includes brand non-submit `OPEN_RECORD` continuity and selection `Open` continuity
 
 ### Model
 
 - create success opens the new model record
 - update success opens the refreshed model record
 - `all models` returns list-view-style results
+- current grouped-object rollout now includes model non-submit `OPEN_RECORD` continuity and selection `Open` continuity
 
 ### Message Template
 
 - create success opens the new message template record
 - update success opens the refreshed message template record
 - `all message templates` returns list-view-style results
+- current grouped-object rollout now includes message-template non-submit `OPEN_RECORD` continuity, selection `Open` continuity, safe image preview in chat cards, and `Use In Send Message` handoff through the existing messaging path
+
+### Message Send
+
+- first grouped-object history rollout starts with generic query/list support for `show messages` and `show recent messages`
+- recipient, date-relative, and template-based filtering remain follow-up phases
 
 ## Frontend Compatibility Rule
 
@@ -179,6 +202,19 @@ The AI agent response should reuse established frontend response patterns so the
 - refresh a record
 - open a form
 - show query/list results
+
+For approved lead, contact, and opportunity flows, the current continuity strategy is:
+
+- submit success stays in the chat thread and does not auto-open the workspace
+- non-submit `OPEN_RECORD` appends the newest result/card in chat first
+- workspace compatibility remains available downstream
+- selection-driven `Open` actions use chat-first continuity where rolled out for the object
+
+For the current `SEND_MESSAGE` handoff flow, the continuity strategy is:
+
+- handoff confirmation lands in the latest chat area first
+- chat focus is preserved before the messaging workspace opens
+- existing selection and template session handoff data remains the source of truth for the send page import behavior
 
 ## Current UI Entry Points That Still Use `OPEN_FORM` By Design
 

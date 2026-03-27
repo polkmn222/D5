@@ -162,7 +162,7 @@ This document is the primary entry point for the active D4 workspace. It absorbs
 - Update `docs/codex-working-rules.md`, `docs/testing.md`, and `docs/ai-agent-crud-contract.md` when their policy surfaces change.
 - Do not reintroduce retired `GEMINI.md` guidance as a parallel source of truth.
 - Use the next unused phase number across `task/`, `Implementation/`, `Walkthrough/`, and `backups/` before writing artifacts.
-- Store a full codebase backup inside a dedicated grouped range folder such as `backups/001_100/phaseN/` or `backups/101_199/phaseN/`; do not leave phase backups as loose files at the backups root.
+- Store backups only for the module folders changed in the approved phase inside a dedicated grouped range folder such as `backups/001_100/phaseN/` or `backups/101_199/phaseN/`; do not leave phase backups as loose files at the backups root.
 - Create new project-level markdown files under `development/docs/` by default.
 - Keep root-level markdown files out of the repository root unless the file is a required phase artifact in `task/`, `Implementation/`, or `Walkthrough/`, or a folder-local README that documents a specific subtree.
 - Read and follow all active markdown files under `development/docs/` before making project changes, but use this priority order when the volume is large: `docs/agent.md` -> `docs/codex-working-rules.md` -> `docs/testing.md` -> other task-relevant `docs/*.md` -> `docs/testing/*.md` -> D4-specific skill guides -> imported agency skill docs.
@@ -171,8 +171,8 @@ This document is the primary entry point for the active D4 workspace. It absorbs
 ## Delivery Directives
 
 - Save phase tracking files as `task/task_phaseN.md`, `Implementation/Implementation_phaseN.md`, and `Walkthrough/Walkthrough_phaseN.md`.
-- Regardless of the magnitude of change, store a pre-change backup for the modified modules under the matching grouped range folder, for example `backups/101_199/phase148/`, using phase-specific folders and relative paths.
-- This full codebase backup is mandatory for all phases, including docs-only phases.
+- Regardless of the magnitude of change, store a pre-change backup only for the modified modules under the matching grouped range folder, for example `backups/101_199/phase148/`, using phase-specific folders and relative paths.
+- Do not create a broad or full-repository backup when the approved phase only changes a limited module set.
 - When the Antigravity MCP `sequential-thinking` tool is available, use it for structured execution planning; if it is unavailable, do not block work and instead follow the docs-driven workflow automatically.
 
 ## Test and Cache Rules

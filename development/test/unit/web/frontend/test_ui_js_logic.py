@@ -2,6 +2,8 @@ import os
 
 BASE_HTML_PATH = "development/web/frontend/templates/base.html"
 LIST_VIEWS_JS_PATH = "development/web/frontend/static/js/list_views.js"
+BULK_ACTION_JS_PATH = "development/web/frontend/static/js/bulk_action.js"
+TRASH_TEMPLATE_PATH = "development/web/frontend/templates/trash/list_view.html"
 
 def _read(path: str) -> str:
     with open(path, "r") as f:
@@ -39,3 +41,26 @@ class TestUIJSLogic:
         # Verify the 150ms delay for skeleton loader
         assert 'setTimeout(() => {' in js
         assert '}, 150)' in js
+
+    def test_list_views_js_persists_recent_records_and_saved_views(self):
+        js = _read(LIST_VIEWS_JS_PATH)
+        assert "function readRecentListViewRecords" in js
+        assert "function rememberRecentlyViewedRecord" in js
+        assert "localStorage.setItem(storageKey, JSON.stringify(records.slice(0, 20)))" in js
+        assert "requestLeadListView(url, method, payload)" in js
+
+    def test_bulk_action_js_updates_button_and_calls_shared_endpoint(self):
+        js = _read(BULK_ACTION_JS_PATH)
+        assert "function toggleAllCheckboxes(source)" in js
+        assert "updateDeleteButtonState();" in js
+        assert "Delete (${checkboxes.length})" in js
+        assert "fetch('/bulk/delete'" in js
+        assert "showConfirmModal(title, message, () => {" in js
+
+    def test_trash_template_has_search_windowing_and_load_more_logic(self):
+        html = _read(TRASH_TEMPLATE_PATH)
+        assert "const trashState = {" in html
+        assert "function handleTrashSearch(query)" in html
+        assert "function applyTrashFiltersAndWindowing()" in html
+        assert "Loading more deleted records..." in html
+        assert "document.addEventListener('DOMContentLoaded', () => {" in html

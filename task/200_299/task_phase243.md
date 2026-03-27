@@ -1,0 +1,23 @@
+## Phase 243 Task Record
+
+- Approved phase: approved-object `OPEN_FORM` behavior parity cleanup only.
+- Approved objects: `lead`, `contact`, `opportunity`.
+- In scope:
+  - create form-opening consistency
+  - edit form-opening consistency
+  - wording consistency around opening/saving/updating in chat
+  - transition consistency around approved-object `OPEN_FORM` behavior
+- Out of scope:
+  - scalar field parity
+  - lookup field parity
+  - validation redesign
+  - new objects
+  - new lookup slices
+  - broader UI redesign
+  - payload/model redesign
+- Constraints:
+  - backend-only if possible
+  - unit tests only
+  - no manual testing
+  - no commit
+  - no push

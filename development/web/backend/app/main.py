@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 from contextlib import asynccontextmanager
+import time
+import logging
 
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
@@ -10,17 +12,24 @@ from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from web.backend.app.api.api_router import api_router
 from web.backend.app.core.templates import templates
 from web.backend.app.core.toggles import FEATURE_TOGGLES
+from web.backend.app.utils.perf_diagnostics import RequestTimingMiddleware, diagnostics_enabled
 
 from db.database import engine, Base
 from db import models
-import logging
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    startup_started_at = time.perf_counter()
     Base.metadata.create_all(bind=engine)
+    if diagnostics_enabled():
+        logger.info(
+            "web_perf_startup component=lifespan_create_all duration_ms=%.2f",
+            (time.perf_counter() - startup_started_at) * 1000,
+        )
     yield
 
 app = FastAPI(title="AI Ready CRM", lifespan=lifespan)
+app.add_middleware(RequestTimingMiddleware)
 
 logger = logging.getLogger(__name__)
 

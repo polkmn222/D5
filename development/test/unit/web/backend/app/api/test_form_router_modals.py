@@ -38,3 +38,28 @@ def test_lead_modal_embedded_mode_contract_keeps_lookup_inputs_and_removes_modal
     assert "initLookup('lookup-container-{{ field }}'" in template_source
     assert '<script src="/static/js/lookup.js"></script>' in embedded_page_source
     assert '{% include "templates/sf_form_modal.html" %}' in embedded_page_source
+
+
+def test_form_router_keeps_core_crm_modal_routes_for_create_and_edit_flows():
+    source = Path("development/web/backend/app/api/form_router.py").read_text(encoding="utf-8")
+
+    assert '@router.get("/contacts/new-modal")' in source
+    assert '@router.get("/contacts/new")' in source
+    assert '@router.get("/opportunities/new-modal")' in source
+    assert '@router.get("/opportunities/new")' in source
+    assert '@router.get("/products/new-modal")' in source
+    assert '@router.get("/products/new")' in source
+    assert '"object_type": "Contact"' in source
+    assert '"object_type": "Opportunity"' in source
+    assert '"object_type": "Product"' in source
+
+
+def test_form_router_keeps_lookup_prefill_contracts_for_related_create_flows():
+    source = Path("development/web/backend/app/api/form_router.py").read_text(encoding="utf-8")
+
+    assert '"contact_name": _contact_display_name(contact_obj)' in source
+    assert '"brand_name": brand_spec.name if brand_spec else ""' in source
+    assert '"model_name": model_obj.name if model_obj else ""' in source
+    assert '"product_name": prod_obj.name if prod_obj else ""' in source
+    assert '"asset_name": asset_obj.name if asset_obj else ""' in source
+    assert 'if model_obj and not brand and getattr(model_obj, "brand", None):' in source

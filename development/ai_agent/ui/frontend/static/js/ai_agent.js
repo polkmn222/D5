@@ -511,6 +511,13 @@ function scrollAgentWorkspaceIntoView(panel, body) {
     body.scrollTo({ top: nextScrollTop, behavior: 'smooth' });
 }
 
+function scrollAgentChatMessageIntoView(target) {
+    if (!target) return;
+    setTimeout(() => {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 60);
+}
+
 function renderAgentWorkspaceFrame(content, url, title) {
     if (!content || !url) return;
     content.innerHTML = `
@@ -523,12 +530,13 @@ function renderAgentWorkspaceFrame(content, url, title) {
     `;
 }
 
-function openAgentWorkspace(url, title) {
+function openAgentWorkspace(url, title, options = {}) {
     const panel = document.getElementById('ai-agent-workspace');
     const content = document.getElementById('ai-agent-workspace-content');
     const loading = document.getElementById('ai-agent-workspace-loading');
     const heading = document.getElementById('ai-agent-workspace-title');
     const body = document.getElementById('ai-agent-body');
+    const preserveChatFocus = options.preserveChatFocus === true;
     if (!panel || !content || !loading || !heading || !url) return;
 
     recordAiAgentDebug('workspace-open', {
@@ -551,9 +559,12 @@ function openAgentWorkspace(url, title) {
             top: Math.round(rect.top),
             height: Math.round(rect.height),
             hidden: panel.classList.contains('agent-hidden'),
+            preserveChatFocus,
         });
     });
-    scrollAgentWorkspaceIntoView(panel, body);
+    if (!preserveChatFocus) {
+        scrollAgentWorkspaceIntoView(panel, body);
+    }
     if (url.includes('/new-modal')) {
         renderAgentWorkspaceFrame(content, url, title || 'Form');
         const frame = content.querySelector('.agent-workspace-frame');
@@ -564,7 +575,9 @@ function openAgentWorkspace(url, title) {
                     url,
                     title: title || 'Form',
                 });
-                scrollAgentWorkspaceIntoView(panel, body);
+                if (!preserveChatFocus) {
+                    scrollAgentWorkspaceIntoView(panel, body);
+                }
             }, { once: true });
         }
         recordAiAgentDebug('workspace-frame-open', {
@@ -613,8 +626,11 @@ function openAgentWorkspace(url, title) {
             loading.classList.add('agent-hidden');
             recordAiAgentDebug('workspace-finish', {
                 loadingHidden: loading.classList.contains('agent-hidden'),
+                preserveChatFocus,
             });
-            scrollAgentWorkspaceIntoView(panel, body);
+            if (!preserveChatFocus) {
+                scrollAgentWorkspaceIntoView(panel, body);
+            }
         });
 }
 
@@ -675,11 +691,35 @@ function closeAgentImagePreview() {
     fallback.style.display = 'none';
 }
 
+function completeAgentSendMessageHandoff(redirectUrl, messageText, templateId = null, selection = null) {
+    if (selection) {
+        sessionStorage.setItem('aiAgentMessageSelection', JSON.stringify(selection));
+    }
+    if (templateId) {
+        sessionStorage.setItem('aiAgentMessageTemplate', templateId);
+    } else {
+        sessionStorage.removeItem('aiAgentMessageTemplate');
+    }
+
+    let appendedMessage = null;
+    if (messageText) {
+        appendedMessage = appendChatMessage('agent', messageText);
+    }
+    if (appendedMessage) {
+        scrollAgentChatMessageIntoView(appendedMessage);
+    }
+    if (redirectUrl) {
+        requestAnimationFrame(() => openAgentWorkspace(redirectUrl, 'Send Message', { preserveChatFocus: true }));
+    }
+}
+
 function startTemplateSendFromAgent(templateId) {
     if (!templateId) return;
-    sessionStorage.setItem('aiAgentMessageTemplate', templateId);
-    appendChatMessage('agent', `Template prepared for Send Message. I'll open the messaging screen with template \`${templateId}\` ready.`);
-    openAgentWorkspace('/messaging/ui?sourceObject=message_template', 'Send Message');
+    completeAgentSendMessageHandoff(
+        '/messaging/ui?sourceObject=message_template',
+        `Template prepared for Send Message. I'll open the messaging screen with template \`${templateId}\` ready.`,
+        templateId
+    );
 }
 
 function createConversationId() {
@@ -879,11 +919,23 @@ async function sendAiMessage(queryOverride = null, pageOverride = 1) {
                 ? getAgentObjectRoute(data.object_type, data.record_id, 'detail')
                 : null;
             const targetUrl = data.redirect_url || fallbackDetailUrl;
+            const preserveChatFocus = data.object_type === 'lead' || data.object_type === 'contact' || data.object_type === 'opportunity' || data.object_type === 'product' || data.object_type === 'asset' || data.object_type === 'brand' || data.object_type === 'model' || data.object_type === 'message_template';
+            let appendedMessage = null;
+            if (preserveChatFocus && data.text) {
+                appendedMessage = appendChatMessage('agent', data.text, null, data.sql, data.results, data.object_type, data.pagination, data.original_query, data.chat_card);
+            }
+            if (preserveChatFocus && appendedMessage) {
+                scrollAgentChatMessageIntoView(appendedMessage);
+            }
             if (targetUrl) {
                 const workspaceTitle = data.chat_card?.title || data.form_title || 'Record View';
-                openAgentWorkspace(targetUrl, workspaceTitle);
+                if (preserveChatFocus) {
+                    requestAnimationFrame(() => openAgentWorkspace(targetUrl, workspaceTitle, { preserveChatFocus }));
+                } else {
+                    openAgentWorkspace(targetUrl, workspaceTitle);
+                }
             }
-            if (data.text) {
+            if (!preserveChatFocus && data.text) {
                 appendChatMessage('agent', data.text, null, data.sql, data.results, data.object_type, data.pagination, data.original_query, data.chat_card);
             }
             return;
@@ -891,17 +943,12 @@ async function sendAiMessage(queryOverride = null, pageOverride = 1) {
 
         // Handle Send Message intent
         if (data.intent === 'SEND_MESSAGE') {
-            if (data.selection) {
-                sessionStorage.setItem('aiAgentMessageSelection', JSON.stringify(data.selection));
-            }
-            if (data.template_id) {
-                sessionStorage.setItem('aiAgentMessageTemplate', data.template_id);
-            } else {
-                sessionStorage.removeItem('aiAgentMessageTemplate');
-            }
-            if (data.redirect_url) {
-                openAgentWorkspace(data.redirect_url, 'Send Message');
-            }
+            completeAgentSendMessageHandoff(
+                data.redirect_url,
+                data.text,
+                data.template_id,
+                data.selection
+            );
             return;
         }
 
@@ -975,7 +1022,7 @@ function consumePendingDeleteShortcut(queryText) {
 
 function appendChatMessage(role, text, id = null, sql = null, results = null, objectType = null, pagination = null, originalQuery = null, chatCard = null) {
     const body = document.getElementById('ai-agent-body');
-    if (!body) return;
+    if (!body) return null;
 
     const msgDiv = document.createElement('div');
     msgDiv.className = role === 'user' ? 'msg-user' : 'msg-agent';
@@ -1026,6 +1073,7 @@ function appendChatMessage(role, text, id = null, sql = null, results = null, ob
 
     body.appendChild(msgDiv);
     updateSelectionBar();
+    return msgDiv;
 }
 
 function removeExistingAgentInlineForms() {
@@ -1263,9 +1311,11 @@ function sendQuickMessage(text) {
     if (!input) return;
     const deleteShortcut = consumePendingDeleteShortcut(text);
     if (deleteShortcut) {
-        appendChatMessage('user', deleteShortcut.displayText);
+        const deleteMessage = appendChatMessage('user', deleteShortcut.displayText);
+        scrollAgentChatMessageIntoView(deleteMessage);
         if (deleteShortcut.cancelOnly) {
-            appendChatMessage('agent', 'Delete request cancelled.');
+            const cancelledMessage = appendChatMessage('agent', 'Delete request cancelled.');
+            scrollAgentChatMessageIntoView(cancelledMessage);
             return;
         }
         sendAiMessage(deleteShortcut.actualQuery);
@@ -1276,7 +1326,8 @@ function sendQuickMessage(text) {
 }
 
 function sendAiMessageWithDisplay(displayText, actualQuery) {
-    appendChatMessage('user', displayText);
+    const message = appendChatMessage('user', displayText);
+    scrollAgentChatMessageIntoView(message);
     sendAiMessage(actualQuery);
 }
 
@@ -1554,10 +1605,15 @@ async function submitAgentChatForm(event) {
                 ? getAgentObjectRoute(data.object_type, data.record_id, 'detail')
                 : null;
             const targetUrl = data.redirect_url || fallbackDetailUrl;
+            const skipWorkspaceOpen = data.object_type === 'lead' || data.object_type === 'contact' || data.object_type === 'opportunity';
+            let appendedMessage = null;
             if (data.text) {
-                appendChatMessage('agent', data.text, null, data.sql, data.results, data.object_type, data.pagination, data.original_query, data.chat_card);
+                appendedMessage = appendChatMessage('agent', data.text, null, data.sql, data.results, data.object_type, data.pagination, data.original_query, data.chat_card);
             }
-            if (targetUrl) {
+            if (skipWorkspaceOpen && appendedMessage) {
+                scrollAgentChatMessageIntoView(appendedMessage);
+            }
+            if (targetUrl && !skipWorkspaceOpen) {
                 const workspaceTitle = data.chat_card?.title || data.form_title || 'Record View';
                 requestAnimationFrame(() => openAgentWorkspace(targetUrl, workspaceTitle));
             }
@@ -1638,6 +1694,16 @@ function renderAgentChatCard(card) {
             if (act.action === 'send_message') {
                 return `<button class="${btnClass}" onclick="triggerLeadCardSendMessage('${escapeAgentQuery(objectType)}', '${escapeAgentQuery(recordId)}', '${escapeAgentHtml(displayName)}')">${label}</button>`;
             }
+            if (act.action === 'open' && (objectType === 'asset' || objectType === 'brand' || objectType === 'model' || objectType === 'message_template')) {
+                const openQuery = `Manage ${escapeAgentQuery(objectType)} ${escapeAgentQuery(recordId)}`;
+                return `<button class="${btnClass}" onclick="sendAiMessageWithDisplay('Open ${escapeAgentHtml(displayName)}', '${openQuery}')">${label}</button>`;
+            }
+            if (act.action === 'preview_image' && act.url) {
+                return `<button class="${btnClass}" onclick="openAgentImagePreview('${escapeAgentQuery(act.url)}', 'Template Preview')">${label}</button>`;
+            }
+            if (act.action === 'use_in_send') {
+                return `<button class="${btnClass}" onclick="startTemplateSendFromAgent('${escapeAgentQuery(recordId)}')">${label}</button>`;
+            }
             return `<button type="button" class="${btnClass}" onclick="event.preventDefault(); event.stopPropagation(); sendQuickMessage('${escapeAgentQuery(act.action)} ${escapeAgentQuery(objectType)} ${escapeAgentQuery(recordId)}'); return false;">${label}</button>`;
         }).join('');
         actionButtonsHtml = `<div class="agent-paste-actions">${buttons}</div>`;
@@ -1682,7 +1748,8 @@ function triggerLeadCardSendMessage(objectType, recordId, displayName) {
 
 function triggerSnapshotDelete(objectType, recordId, displayName) {
     if (!objectType || !recordId) return;
-    appendChatMessage('agent', `Are you sure you want to delete **${displayName}**?\n[Yes] [Cancel]\n<!--delete-confirm|${objectType}|${recordId}|${displayName}-->`);
+    const confirmationMessage = appendChatMessage('agent', `Are you sure you want to delete **${displayName}**?\n[Yes] [Cancel]\n<!--delete-confirm|${objectType}|${recordId}|${displayName}-->`);
+    scrollAgentChatMessageIntoView(confirmationMessage);
 
     // Store pending deletion context on the window so Yes/Cancel handlers can pick it up
     window._agentPendingDelete = { objectType, recordId, displayName };
@@ -2113,7 +2180,15 @@ function triggerSelectionOpen() {
         return;
     }
     const label = selection.labels?.[0] || selection.ids[0];
-    if (shouldUseAgentChatPaste(selection.object_type)) {
+    const shouldRouteThroughChatOpen = shouldUseAgentChatPaste(selection.object_type)
+        || selection.object_type === 'contact'
+        || selection.object_type === 'opportunity'
+        || selection.object_type === 'product'
+        || selection.object_type === 'asset'
+        || selection.object_type === 'brand'
+        || selection.object_type === 'model'
+        || selection.object_type === 'message_template';
+    if (shouldRouteThroughChatOpen) {
         sendAiMessageWithDisplay(`Open ${label}`, `Manage ${selection.object_type} ${selection.ids[0]}`);
         return;
     }
@@ -2158,7 +2233,8 @@ function triggerSelectionDelete() {
     const subject = selection.ids.length === 1
         ? `**${firstLabel}**`
         : `**${selection.ids.length}** ${normalizeObjectLabel(selection.object_type, selection.ids.length)}`;
-    appendChatMessage('agent', `Are you sure you want to delete ${subject}?\n[Yes] [Cancel]`);
+    const confirmationMessage = appendChatMessage('agent', `Are you sure you want to delete ${subject}?\n[Yes] [Cancel]`);
+    scrollAgentChatMessageIntoView(confirmationMessage);
     // Store pending deletion so the Yes handler can resolve it
     window._agentPendingDelete = {
         objectType: selection.object_type,
