@@ -1481,31 +1481,50 @@ class AiAgentService:
         }
 
     @classmethod
-    def _resolve_contextual_record_reference(cls, user_query: str, conversation_id: Optional[str]) -> Optional[Dict[str, Any]]:
-        if not conversation_id:
+    def _resolve_contextual_record_reference(
+        cls,
+        user_query: str,
+        conversation_id: Optional[str],
+        selection: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        if not conversation_id and not selection:
             return None
 
         context = ConversationContextStore.get_context(conversation_id)
         last_created = context.get("last_created") or {}
-        object_type = context.get("last_object") or last_created.get("object_type")
-        record_id = context.get("last_record_id") or last_created.get("record_id")
-
-        if not object_type or not record_id:
-            return None
 
         q_low = user_query.lower()
+
+        def contains_marker(marker: str) -> bool:
+            if not marker:
+                return False
+            if re.fullmatch(r"[a-z]+", marker):
+                return re.search(rf"\b{re.escape(marker)}\b", q_low) is not None
+            return marker in q_low or marker in user_query
+
         recent_markers = ["just created", "recently created", "방금 생성", "방금 생성한", "방금 만든", "최근 만든", "최근 생성"]
         normalized_query = IntentPreClassifier.normalize(user_query)
         explicit_objects = [
             value for key, value in IntentPreClassifier.OBJECT_MAP.items()
-            if key in normalized_query
+            if value in cls.PHASE1_OBJECTS and key in normalized_query
         ]
-        if explicit_objects and object_type not in explicit_objects:
-            return None
+        context_object_type = context.get("last_object") or last_created.get("object_type")
+        context_record_id = context.get("last_record_id") or last_created.get("record_id")
+        selection_payload = selection or ConversationContextStore.get_selection(conversation_id)
+        selection_object_type = (selection_payload or {}).get("object_type")
+        selection_ids = list((selection_payload or {}).get("ids") or [])
+        selection_record_id = selection_ids[0] if len(selection_ids) == 1 else None
 
-        if any(marker in q_low or marker in user_query for marker in recent_markers):
-            recent_object_type = last_created.get("object_type") or object_type
-            recent_record_id = last_created.get("record_id") or record_id
+        if context_object_type not in cls.PHASE1_OBJECTS:
+            context_object_type = None
+            context_record_id = None
+        if selection_object_type not in cls.PHASE1_OBJECTS:
+            selection_object_type = None
+            selection_record_id = None
+
+        if any(contains_marker(marker) for marker in recent_markers):
+            recent_object_type = last_created.get("object_type") or context_object_type
+            recent_record_id = last_created.get("record_id") or context_record_id
             if not recent_object_type or not recent_record_id:
                 return None
             return {
@@ -1516,15 +1535,66 @@ class AiAgentService:
             }
 
         follow_up_markers = ["that", "this", "it", "them", "those", "that one", "the one", "this one", "the record", "record", "그", "이", "해당", "방금", "최근"]
-        has_follow_up_marker = any(marker in q_low or marker in user_query for marker in follow_up_markers)
+        has_follow_up_marker = any(contains_marker(marker) for marker in follow_up_markers)
         manage_markers = ["show", "open", "manage", "view", "details", "grab", "fetch", "보여", "열어", "관리", "상세"]
         update_markers = ["update", "edit", "change", "modify", "tweak", "fix", "수정", "변경", "바꿔"]
 
-        if has_follow_up_marker and any(marker in q_low or marker in user_query for marker in manage_markers + update_markers):
+        if not has_follow_up_marker or not any(contains_marker(marker) for marker in manage_markers + update_markers):
+            return None
+
+        desired_object_type = explicit_objects[0] if explicit_objects else None
+        context_candidate = (
+            {"object_type": context_object_type, "record_id": context_record_id}
+            if context_object_type and context_record_id else None
+        )
+        selection_candidate = (
+            {"object_type": selection_object_type, "record_id": selection_record_id}
+            if selection_object_type and selection_record_id else None
+        )
+
+        if desired_object_type:
+            if context_candidate and context_candidate["object_type"] == desired_object_type:
+                return {
+                    "intent": "MANAGE",
+                    "object_type": context_candidate["object_type"],
+                    "record_id": context_candidate["record_id"],
+                    "score": 1.0,
+                }
+            if selection_candidate and selection_candidate["object_type"] == desired_object_type:
+                return {
+                    "intent": "MANAGE",
+                    "object_type": selection_candidate["object_type"],
+                    "record_id": selection_candidate["record_id"],
+                    "score": 1.0,
+                }
+            return {
+                "intent": "CHAT",
+                "object_type": desired_object_type,
+                "text": f"I need a specific {desired_object_type} record first. Open one or select one, then try again.",
+                "score": 1.0,
+            }
+
+        if context_candidate and selection_candidate:
+            if (
+                context_candidate["object_type"] != selection_candidate["object_type"]
+                or context_candidate["record_id"] != selection_candidate["record_id"]
+            ):
+                return {
+                    "intent": "CHAT",
+                    "text": (
+                        f"I found two different records in context: the last {context_candidate['object_type']} "
+                        f"({context_candidate['record_id']}) and the selected {selection_candidate['object_type']} "
+                        f"({selection_candidate['record_id']}). Tell me which one to open or edit."
+                    ),
+                    "score": 1.0,
+                }
+
+        chosen = context_candidate or selection_candidate
+        if chosen:
             return {
                 "intent": "MANAGE",
-                "object_type": object_type,
-                "record_id": record_id,
+                "object_type": chosen["object_type"],
+                "record_id": chosen["record_id"],
                 "score": 1.0,
             }
         
@@ -1854,7 +1924,7 @@ class AiAgentService:
             explicit_manage_resolution["language_preference"] = language_preference
             return await cls._execute_intent(db, explicit_manage_resolution, user_query, conversation_id=conversation_id, page=page, per_page=per_page)
 
-        contextual_response = cls._resolve_contextual_record_reference(user_query, conversation_id)
+        contextual_response = cls._resolve_contextual_record_reference(user_query, conversation_id, selection)
         if contextual_response:
             contextual_response["language_preference"] = language_preference
             return await cls._execute_intent(db, contextual_response, user_query, conversation_id=conversation_id, page=page, per_page=per_page)
