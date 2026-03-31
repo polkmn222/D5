@@ -55,6 +55,33 @@ def test_demo_availability_reports_available_when_remote_health_succeeds():
     assert body["provider"] == "surem"
 
 
+def test_demo_availability_uses_local_readiness_when_self_relay_endpoint_matches_request_host():
+    with patch.dict(
+        "os.environ",
+        {
+            "MESSAGE_PROVIDER": "relay",
+            "RELAY_MESSAGE_TOKEN": "secret",
+            "RELAY_MESSAGE_ENDPOINT": "http://testserver/messaging/relay-dispatch",
+            "RELAY_TARGET_PROVIDER": "surem",
+            "SUREM_AUTH_userCode": "user",
+            "SUREM_AUTH_secretKey": "secret",
+            "SUREM_reqPhone": "15884640",
+            "SUREM_TO": "01000000000",
+        },
+        clear=False,
+    ), patch(
+        "web.message.backend.router._check_remote_demo_relay_health",
+        side_effect=AssertionError("self-relay should not perform remote health probe"),
+    ):
+        response = client.get("/messaging/demo-availability")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["available"] is True
+    assert body["mode"] == "relay"
+    assert body["provider"] == "surem"
+
+
 def test_demo_relay_health_rejects_invalid_token():
     with patch.dict(
         "os.environ",

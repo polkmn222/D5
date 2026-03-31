@@ -188,6 +188,34 @@ def _derive_demo_relay_health_url(endpoint: str) -> Optional[str]:
     return urlunparse(parsed._replace(path=health_path, params="", query="", fragment=""))
 
 
+def _normalize_url_for_compare(url: str) -> Optional[tuple[str, str, str]]:
+    parsed = urlparse((url or "").strip())
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    path = parsed.path.rstrip("/") or "/"
+    return parsed.scheme.lower(), parsed.netloc.lower(), path
+
+
+def _is_self_relay_endpoint(endpoint: str, current_base_url: str) -> bool:
+    current_dispatch_url = f"{(current_base_url or '').rstrip('/')}/messaging/relay-dispatch"
+    return _normalize_url_for_compare(endpoint) == _normalize_url_for_compare(current_dispatch_url)
+
+
+def _local_demo_relay_status() -> dict:
+    target_provider = _relay_target_provider()
+    provider_ready, reason = _provider_ready_for_demo(target_provider)
+    if not provider_ready:
+        return _demo_unavailable_response(reason)
+
+    return {
+        "available": True,
+        "message": "",
+        "reason": None,
+        "provider": target_provider,
+        "mode": "relay",
+    }
+
+
 def _check_remote_demo_relay_health(endpoint: str, token: str) -> dict:
     health_url = _derive_demo_relay_health_url(endpoint)
     if not health_url:
@@ -284,7 +312,7 @@ async def demo_relay_health(authorization: Optional[str] = Header(default=None))
 
 
 @router.get("/demo-availability")
-async def demo_availability():
+async def demo_availability(request: Request):
     provider_name = MessageProviderFactory.get_provider_name()
     if provider_name != "relay":
         return {
@@ -301,6 +329,12 @@ async def demo_availability():
         return _demo_unavailable_response("relay_endpoint_not_configured")
     if not token:
         return _demo_unavailable_response("relay_token_not_configured")
+
+    if _is_self_relay_endpoint(endpoint, str(request.base_url)):
+        relay_status = _local_demo_relay_status()
+        relay_status["provider"] = relay_status.get("provider") or provider_name
+        relay_status["mode"] = "relay"
+        return relay_status
 
     relay_status = _check_remote_demo_relay_health(endpoint, token)
     relay_status["provider"] = relay_status.get("provider") or provider_name

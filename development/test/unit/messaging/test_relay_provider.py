@@ -7,7 +7,7 @@ from web.message.backend.services.message_providers.relay_provider import RelayM
 def test_relay_provider_requires_endpoint():
     provider = RelayMessageProvider()
     payload = MessageDispatchPayload(contact_id="C1", record_type="SMS", content="hello")
-    with patch.dict("os.environ", {"RELAY_MESSAGE_TOKEN": "token"}, clear=False):
+    with patch.dict("os.environ", {"RELAY_MESSAGE_ENDPOINT": "", "RELAY_MESSAGE_TOKEN": "token"}, clear=False):
         response = provider.send(None, payload)
     assert response["status"] == "error"
     assert "RELAY_MESSAGE_ENDPOINT" in response["message"]
