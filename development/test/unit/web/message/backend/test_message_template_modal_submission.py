@@ -90,7 +90,7 @@ def test_home_send_message_ui_gates_demo_relay_availability_before_send():
     assert 'id="demo-message-send-btn"' in source
     assert "fetch('/messaging/demo-availability')" in source
     assert "ensureDemoRelayAvailability()" in source
-    assert "관리자에게 문의해주세요" in source
+    assert "Contact the administrator" in source
 
 
 def test_send_message_ui_initializes_ai_agent_guidance_banner():

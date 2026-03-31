@@ -24,7 +24,7 @@ def test_demo_availability_reports_unavailable_when_relay_endpoint_missing():
     body = response.json()
     assert body["available"] is False
     assert body["reason"] == "relay_endpoint_not_configured"
-    assert "관리자에게 문의해주세요" in body["message"]
+    assert "Contact the administrator" in body["message"]
 
 
 def test_demo_availability_reports_available_when_remote_health_succeeds():

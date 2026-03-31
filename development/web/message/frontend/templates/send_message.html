@@ -1651,7 +1651,7 @@
     const demoRelayAvailabilityState = {
         checked: false,
         available: false,
-        message: "메시지 서비스 연결 상태를 확인하고 있습니다...",
+        message: "Checking message service availability...",
     };
 
     function applyDemoRelayAvailabilityState() {
@@ -1692,7 +1692,7 @@
     async function refreshDemoRelayAvailability() {
         demoRelayAvailabilityState.checked = false;
         demoRelayAvailabilityState.available = false;
-        demoRelayAvailabilityState.message = '메시지 서비스 연결 상태를 확인하고 있습니다...';
+        demoRelayAvailabilityState.message = 'Checking message service availability...';
         applyDemoRelayAvailabilityState();
 
         try {
@@ -1700,12 +1700,12 @@
             const payload = await response.json();
             demoRelayAvailabilityState.checked = true;
             demoRelayAvailabilityState.available = Boolean(payload.available);
-            demoRelayAvailabilityState.message = payload.message || '메시지 서비스에 연결할 수 없습니다. 관리자에게 문의해주세요!';
+            demoRelayAvailabilityState.message = payload.message || 'Message service is unavailable. Contact the administrator.';
         } catch (error) {
             console.error('Demo relay availability error:', error);
             demoRelayAvailabilityState.checked = true;
             demoRelayAvailabilityState.available = false;
-            demoRelayAvailabilityState.message = '메시지 서비스에 연결할 수 없습니다. 관리자에게 문의해주세요!';
+            demoRelayAvailabilityState.message = 'Message service is unavailable. Contact the administrator.';
         }
 
         applyDemoRelayAvailabilityState();
@@ -1713,11 +1713,11 @@
 
     function ensureDemoRelayAvailability() {
         if (!demoRelayAvailabilityState.checked) {
-            showToast('메시지 서비스 연결 상태를 확인하고 있습니다. 잠시만 기다려주세요.', true);
+            showToast('Checking message service availability. Please wait a moment.', true);
             return false;
         }
         if (!demoRelayAvailabilityState.available) {
-            showToast(demoRelayAvailabilityState.message || '메시지 서비스에 연결할 수 없습니다. 관리자에게 문의해주세요!', true);
+            showToast(demoRelayAvailabilityState.message || 'Message service is unavailable. Contact the administrator.', true);
             return false;
         }
         return true;

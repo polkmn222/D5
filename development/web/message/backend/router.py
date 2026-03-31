@@ -22,7 +22,7 @@ from ai_agent.llm.backend.recommendations import AIRecommendationService
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/messaging", tags=["Messaging"])
-DEMO_UNAVAILABLE_MESSAGE = "메시지 서비스에 연결할 수 없습니다. 관리자에게 문의해주세요!"
+DEMO_UNAVAILABLE_MESSAGE = "Message service is unavailable. Contact the administrator."
 
 
 def _serialize_messaging_recommendations(db: Session, recommended_opps, limit: Optional[int] = None):
