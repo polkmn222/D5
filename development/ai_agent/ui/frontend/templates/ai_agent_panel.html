@@ -44,7 +44,7 @@
                 <div class="quick-guide-grid">
                     <button class="quick-btn quick-card" onclick="sendQuickMessage('AI Recommend')"><span class="quick-card-icon">✨</span><span><strong data-ai-guide-recommend>AI Recommend</strong><small data-ai-guide-recommend-copy>Surface recommended deals</small></span></button>
                     <button class="quick-btn quick-card" onclick="sendQuickMessage('Change AI Recommend')"><span class="quick-card-icon">🎨</span><span><strong data-ai-guide-change-recommend>Change AI Recommend</strong><small data-ai-guide-change-recommend-copy>Change the recommendation logic for the home card</small></span></button>
-                    <button class="quick-btn quick-card" onclick="sendQuickMessage('Send Message')"><span class="quick-card-icon">✉️</span><span><strong data-ai-guide-send-message>Send Message</strong><small data-ai-guide-send-message-copy>Open the messaging flow for selected records</small></span></button>
+                    <button class="quick-btn quick-card" onclick="sendQuickMessage('Send Message')" data-ai-send-message-trigger><span class="quick-card-icon">✉️</span><span><strong data-ai-guide-send-message>Send Message</strong><small data-ai-guide-send-message-copy>Open the messaging flow for selected records</small></span></button>
                     <button class="quick-btn quick-card" onclick="sendQuickMessage('Show my top deals')"><span class="quick-card-icon">🏆</span><span><strong data-ai-guide-top-deals>Top Deals</strong><small data-ai-guide-top-deals-copy>Ask for top-value opportunities</small></span></button>
                     <button class="quick-btn quick-card" onclick="sendQuickMessage('List my Leads')"><span class="quick-card-icon">📝</span><span><strong data-ai-guide-my-leads>My Leads</strong><small data-ai-guide-my-leads-copy>Get a quick personal list</small></span></button>
                 </div>
@@ -92,6 +92,7 @@
                     <button class="selection-action-btn selection-action-primary" onclick="triggerSelectionMessaging()" data-ai-selection-send>Send Message</button>
                 </div>
             </div>
+            <div id="ai-agent-messaging-block-banner" class="agent-inline-notice agent-hidden" style="display:none; margin: 0 0 12px; padding: 10px 12px; border: 1px solid #f2c7c7; border-radius: 10px; background: #fff6f6; color: #7b2d2f; font-size: 0.85rem;"></div>
             <div id="ai-agent-workspace" class="agent-workspace agent-hidden">
                 <div class="agent-workspace-header">
                     <div>

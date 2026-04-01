@@ -18,6 +18,12 @@ let aiAgentRecorderChunks = [];
 let aiAgentRecorderStream = null;
 let aiAgentVoiceRecording = false;
 let aiAgentVoiceTranscribing = false;
+const aiAgentMessagingAvailabilityState = {
+    checked: false,
+    available: true,
+    message: '',
+    reason: null,
+};
 const AI_AGENT_FETCH_TIMEOUT_MS = 15000;
 const AI_AGENT_WORKSPACE_TIMEOUT_MS = 12000;
 const AI_AGENT_QUICK_GUIDE_STORAGE_KEY = 'aiAgentQuickGuideActivity';
@@ -48,9 +54,10 @@ const AI_AGENT_DEFAULT_BODY_HTML = `
             <button class="selection-action-btn" onclick="triggerSelectionOpen()">Open</button>
             <button class="selection-action-btn selection-action-edit" onclick="triggerSelectionEdit()">Edit</button>
             <button class="selection-action-btn selection-action-danger" onclick="triggerSelectionDelete()">Delete</button>
-            <button class="selection-action-btn selection-action-primary" onclick="triggerSelectionMessaging()">Send Message</button>
+            <button class="selection-action-btn selection-action-primary" onclick="triggerSelectionMessaging()" data-ai-selection-send>Send Message</button>
         </div>
     </div>
+    <div id="ai-agent-messaging-block-banner" class="agent-inline-notice agent-hidden" style="display:none; margin: 0 0 12px; padding: 10px 12px; border: 1px solid #f2c7c7; border-radius: 10px; background: #fff6f6; color: #7b2d2f; font-size: 0.85rem;"></div>
     <div id="ai-agent-workspace" class="agent-workspace agent-hidden">
         <div class="agent-workspace-header">
             <div>
@@ -142,6 +149,61 @@ function fetchAiAgentWithTimeout(resource, options = {}, timeoutMs = AI_AGENT_FE
         .finally(() => {
             clearTimeout(timer);
         });
+}
+
+function applyAiAgentMessagingAvailabilityState() {
+    const quickButton = document.querySelector('[data-ai-send-message-trigger]');
+    const selectionButton = document.querySelector('[data-ai-selection-send]');
+    const banner = document.getElementById('ai-agent-messaging-block-banner');
+    const blocked = aiAgentMessagingAvailabilityState.checked && !aiAgentMessagingAvailabilityState.available;
+
+    [quickButton, selectionButton].forEach((button) => {
+        if (!button) return;
+        button.disabled = blocked;
+        button.style.opacity = blocked ? '0.65' : '1';
+        button.style.cursor = blocked ? 'not-allowed' : 'pointer';
+        button.title = blocked ? aiAgentMessagingAvailabilityState.message : '';
+    });
+
+    if (!banner) return;
+    if (!blocked) {
+        banner.style.display = 'none';
+        banner.classList.add('agent-hidden');
+        banner.textContent = '';
+        return;
+    }
+    banner.style.display = 'block';
+    banner.classList.remove('agent-hidden');
+    banner.textContent = aiAgentMessagingAvailabilityState.message || 'Message service is unavailable. Contact the administrator.';
+}
+
+async function refreshAiAgentMessagingAvailability() {
+    aiAgentMessagingAvailabilityState.checked = false;
+    aiAgentMessagingAvailabilityState.available = true;
+    aiAgentMessagingAvailabilityState.message = '';
+    aiAgentMessagingAvailabilityState.reason = null;
+    try {
+        const response = await fetchAiAgentWithTimeout('/messaging/demo-availability', {}, AI_AGENT_WORKSPACE_TIMEOUT_MS);
+        const payload = await response.json();
+        aiAgentMessagingAvailabilityState.checked = true;
+        aiAgentMessagingAvailabilityState.available = Boolean(payload.available);
+        aiAgentMessagingAvailabilityState.reason = payload.reason || null;
+        aiAgentMessagingAvailabilityState.message = payload.message || 'Message service is unavailable. Contact the administrator.';
+    } catch (error) {
+        aiAgentMessagingAvailabilityState.checked = true;
+        aiAgentMessagingAvailabilityState.available = false;
+        aiAgentMessagingAvailabilityState.reason = null;
+        aiAgentMessagingAvailabilityState.message = 'Message service is unavailable. Contact the administrator.';
+    }
+    applyAiAgentMessagingAvailabilityState();
+}
+
+function ensureAiAgentMessagingAvailable() {
+    if (aiAgentMessagingAvailabilityState.checked && !aiAgentMessagingAvailabilityState.available) {
+        appendChatMessage('agent', aiAgentMessagingAvailabilityState.message || 'Message service is unavailable. Contact the administrator.');
+        return false;
+    }
+    return true;
 }
 
 function loadQuickGuideActivity() {
@@ -588,7 +650,11 @@ function updateSelectionBar() {
     const sendBtn = bar.querySelector('[data-ai-selection-send]');
     if (openBtn) openBtn.disabled = count !== 1;
     if (editBtn) editBtn.disabled = count !== 1;
-    if (sendBtn) sendBtn.disabled = false;
+    if (sendBtn) {
+        const blocked = aiAgentMessagingAvailabilityState.checked && !aiAgentMessagingAvailabilityState.available;
+        sendBtn.disabled = blocked;
+        sendBtn.title = blocked ? aiAgentMessagingAvailabilityState.message : '';
+    }
     bar.classList.remove('is-hidden');
 }
 
@@ -2440,6 +2506,9 @@ function wireAgentFormContainer(container, formUrl, options = {}) {
 function sendQuickMessage(text) {
     const input = document.getElementById('ai-agent-input');
     if (!input) return;
+    if (text === 'Send Message' && !ensureAiAgentMessagingAvailable()) {
+        return;
+    }
     const deleteShortcut = consumePendingDeleteShortcut(text);
     if (deleteShortcut) {
         appendChatMessage('user', deleteShortcut.displayText);
@@ -2464,6 +2533,7 @@ function sendAiMessageWithDisplay(displayText, actualQuery) {
 document.addEventListener('DOMContentLoaded', () => {
     applyAiAgentLanguageUi();
     updateAiAgentComposerState();
+    refreshAiAgentMessagingAvailability();
     const body = document.getElementById('ai-agent-body');
     body?.addEventListener('scroll', updateAiAgentJumpButtonVisibility);
     window.addEventListener('resize', updateAiAgentJumpButtonVisibility);
@@ -2922,6 +2992,10 @@ function renderAgentChatCard(card) {
                 return `<button class="${btnClass}" onclick="triggerSnapshotDelete('${escapeAgentQuery(objectType)}', '${escapeAgentQuery(recordId)}', '${escapeAgentHtml(displayName)}')">${label}</button>`;
             }
             if (act.action === 'send_message') {
+                const blocked = aiAgentMessagingAvailabilityState.checked && !aiAgentMessagingAvailabilityState.available;
+                if (blocked) {
+                    return `<button class="${btnClass}" disabled title="${escapeAgentHtml(aiAgentMessagingAvailabilityState.message || 'Message service is unavailable. Contact the administrator.')}">Contact Administrator</button>`;
+                }
                 return `<button class="${btnClass}" onclick="triggerLeadCardSendMessage('${escapeAgentQuery(objectType)}', '${escapeAgentQuery(recordId)}', '${escapeAgentHtml(displayName)}')">${label}</button>`;
             }
             if (act.action === 'preview_image' && act.url) {
@@ -2965,6 +3039,7 @@ function renderAgentChatCard(card) {
 
 function triggerLeadCardSendMessage(objectType, recordId, displayName) {
     if (!objectType || !recordId) return;
+    if (!ensureAiAgentMessagingAvailable()) return;
     // Set this record as the messaging selection
     const selectionBucket = ensureSelectionBucket(objectType);
     const meta = ensureSelectionMeta(objectType);
@@ -3471,6 +3546,7 @@ function triggerSelectionMessaging() {
         appendChatMessage('agent', getAiAgentUiCopy().sendMessageGuide);
         return;
     }
+    if (!ensureAiAgentMessagingAvailable()) return;
     sendQuickMessage('Send Message');
 }
 

@@ -16,6 +16,11 @@ class MessagingService:
     LMS_MMS_LIMIT = 2000
 
     @classmethod
+    def _guard_render_delivery_policy(cls) -> None:
+        if MessageProviderFactory.render_delivery_blocked():
+            raise ValueError(MessageProviderFactory.render_delivery_block_message())
+
+    @classmethod
     def _dispatch_payload(
         cls,
         db: Session,
@@ -173,6 +178,7 @@ class MessagingService:
         resolved_content_for_audit = content
         failure_row_recorded = False
         try:
+            cls._guard_render_delivery_policy()
             content, subject, attachment_id, attachment = cls._resolve_message_content(
                 db,
                 content,

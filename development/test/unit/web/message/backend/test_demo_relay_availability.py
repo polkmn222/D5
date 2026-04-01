@@ -27,6 +27,25 @@ def test_demo_availability_reports_unavailable_when_relay_endpoint_missing():
     assert "Contact the administrator" in body["message"]
 
 
+def test_demo_availability_reports_render_delivery_block():
+    with patch.dict(
+        "os.environ",
+        {
+            "MESSAGE_PROVIDER": "relay",
+            "RENDER_SERVICE_NAME": "d5-app",
+            "RELAY_MESSAGE_TOKEN": "secret",
+            "RELAY_MESSAGE_ENDPOINT": "https://demo-bridge.example.com/messaging/relay-dispatch",
+        },
+        clear=False,
+    ):
+        response = client.get("/messaging/demo-availability")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["available"] is False
+    assert body["reason"] == "render_delivery_blocked"
+
+
 def test_demo_availability_reports_available_when_remote_health_succeeds():
     with patch.dict(
         "os.environ",

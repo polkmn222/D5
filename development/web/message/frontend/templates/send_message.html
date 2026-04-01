@@ -1652,6 +1652,7 @@
         checked: false,
         available: false,
         message: "Checking message service availability...",
+        reason: null,
     };
 
     function applyDemoRelayAvailabilityState() {
@@ -1663,6 +1664,7 @@
             sendButton.disabled = true;
             sendButton.style.opacity = '0.65';
             sendButton.style.cursor = 'not-allowed';
+            sendButton.innerText = 'Send Message';
             banner.style.display = 'block';
             banner.style.background = '#f5f8ff';
             banner.style.borderColor = '#d7e3f5';
@@ -1675,6 +1677,7 @@
         sendButton.style.opacity = demoRelayAvailabilityState.available ? '1' : '0.65';
         sendButton.style.cursor = demoRelayAvailabilityState.available ? 'pointer' : 'not-allowed';
         sendButton.title = demoRelayAvailabilityState.available ? '' : demoRelayAvailabilityState.message;
+        sendButton.innerText = demoRelayAvailabilityState.available ? 'Send Message' : 'Contact Administrator';
 
         if (demoRelayAvailabilityState.available) {
             banner.style.display = 'none';
@@ -1700,11 +1703,13 @@
             const payload = await response.json();
             demoRelayAvailabilityState.checked = true;
             demoRelayAvailabilityState.available = Boolean(payload.available);
+            demoRelayAvailabilityState.reason = payload.reason || null;
             demoRelayAvailabilityState.message = payload.message || 'Message service is unavailable. Contact the administrator.';
         } catch (error) {
             console.error('Demo relay availability error:', error);
             demoRelayAvailabilityState.checked = true;
             demoRelayAvailabilityState.available = false;
+            demoRelayAvailabilityState.reason = null;
             demoRelayAvailabilityState.message = 'Message service is unavailable. Contact the administrator.';
         }
 

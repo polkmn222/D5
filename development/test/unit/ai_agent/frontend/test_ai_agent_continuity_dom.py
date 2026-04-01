@@ -1665,6 +1665,67 @@ def test_selection_triggered_send_message_routes_into_ai_native_composer():
     )
 
 
+def test_send_message_actions_render_as_contact_administrator_when_ai_agent_messaging_is_blocked():
+    _run_node_dom_test(
+        """
+        vm.runInContext(`
+            aiAgentMessagingAvailabilityState.checked = true;
+            aiAgentMessagingAvailabilityState.available = false;
+            aiAgentMessagingAvailabilityState.message = 'Message sending is disabled on this deployment. Contact the administrator.';
+        `, context);
+
+        const markup = context.renderAgentChatCard({
+            type: 'record_paste',
+            object_type: 'contact',
+            record_id: 'CONTACT1',
+            title: 'Ada Kim',
+            subtitle: 'Contact · Qualified',
+            fields: [],
+            actions: [
+                { label: 'Send Message', action: 'send_message', tone: 'secondary' },
+            ],
+        });
+
+        if (!markup.includes('Contact Administrator')) {
+            throw new Error('expected blocked AI agent message action to render Contact Administrator label');
+        }
+        if (!markup.includes('disabled')) {
+            throw new Error('expected blocked AI agent message action to render as disabled');
+        }
+        """
+    )
+
+
+def test_send_quick_message_send_message_stops_when_ai_agent_messaging_is_blocked():
+    _run_node_dom_test(
+        """
+        vm.runInContext(`
+            aiAgentMessagingAvailabilityState.checked = true;
+            aiAgentMessagingAvailabilityState.available = false;
+            aiAgentMessagingAvailabilityState.message = 'Message sending is disabled on this deployment. Contact the administrator.';
+        `, context);
+
+        const sentQueries = [];
+        context.sendAiMessage = (query) => {
+            sentQueries.push(query);
+        };
+
+        context.sendQuickMessage('Send Message');
+
+        const body = context.document.getElementById('ai-agent-body');
+        if (body.children.length !== 1) {
+            throw new Error(`expected one blocked-state agent message, got ${body.children.length}`);
+        }
+        if (!body.children[0].innerHTML.includes('Contact the administrator')) {
+            throw new Error('expected blocked-state agent message to mention administrator contact');
+        }
+        if (sentQueries.length !== 0) {
+            throw new Error(`expected no send-message query dispatch when blocked, got ${sentQueries}`);
+        }
+        """
+    )
+
+
 def test_jump_button_is_visible_when_user_is_not_near_bottom_and_hides_at_bottom():
     _run_node_dom_test(
         """

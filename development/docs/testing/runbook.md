@@ -27,6 +27,7 @@ This review order is mandatory before planning or running unit tests.
 - Slack dev/test provider verification: run an automated script or test with `MESSAGE_PROVIDER=slack` and confirm the send result is `Sent`.
 - SureM carrier verification: run one forced-recipient MMS send only after confirming the protected runtime is configured with the required SureM credentials.
 - Provider diagnostics endpoint: `GET /messaging/provider-status`
+- Render policy verification: on Render, confirm `/messaging/provider-status` reports `delivery_policy.render_delivery_blocked=true` unless an explicit override is intended.
 
 These are integration checks, not manual testing.
 

@@ -169,6 +169,8 @@ def demo_relay_health_payload(authorization: Optional[str]) -> tuple[int, dict]:
 
 def demo_availability_payload(request_base_url: str) -> dict:
     provider_name = MessageProviderFactory.get_provider_name()
+    if MessageProviderFactory.render_delivery_blocked():
+        return _demo_unavailable_response("render_delivery_blocked")
     if provider_name != "relay":
         return {
             "available": True,
@@ -202,6 +204,9 @@ def relay_dispatch_payload(
     data: RelayDispatchRequest,
     authorization: Optional[str],
 ) -> tuple[int, dict]:
+    if MessageProviderFactory.render_delivery_blocked():
+        return 503, {"status": "error", "message": MessageProviderFactory.render_delivery_block_message()}
+
     expected_token = os.getenv("RELAY_MESSAGE_TOKEN", "").strip()
     if not expected_token:
         return 500, {"status": "error", "message": "RELAY_MESSAGE_TOKEN is not configured."}

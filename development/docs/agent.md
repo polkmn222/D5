@@ -75,6 +75,8 @@ This document is the primary entry point for the active D4 workspace. It absorbs
 - `MessagingService.send_message()` resolves content, subject, template, and attachment metadata first, then dispatches through the active provider selected by `MESSAGE_PROVIDER`.
 - `mock` is the safe local fallback, `slack` is the dev/test notification path, `surem` is the direct carrier delivery path, and `relay` forwards delivery to a protected runtime.
 - `web.message.backend.relay_app` is the preferred deployment entry when the carrier requires a fixed or country-specific IP and the full app runtime must stay separate from the protected relay host.
+- Render message delivery is blocked by default. Only an explicit `ALLOW_MESSAGE_SEND_ON_RENDER=true` override can re-enable real sends there.
+- In the full app UI and AI Agent UI, a blocked Render runtime should present message sending as unavailable and direct the user to contact the administrator instead of continuing into the send flow.
 - For developer verification, `slack` is the safest real external-delivery check because it exercises the outbound provider path without carrier-side allowlist risk.
 - MMS images are stored in D4-managed storage first for preview, draft, and template reuse; when the active provider is SureM, the image is uploaded to SureM at final send time to obtain the carrier-facing image key.
 - Every successful or failed send attempt writes a `MessageSend` history record so outbound activity remains visible in CRM history even when the provider rejects the message.

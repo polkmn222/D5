@@ -115,3 +115,17 @@ def test_send_message_persists_record_type_subject_and_image_fields():
     assert kwargs["subject"] == "Subject"
     assert kwargs["attachment_id"] == "ATT001"
     assert kwargs["image_url"] == "/static/uploads/message_templates/test.jpg"
+
+
+def test_send_message_is_blocked_on_render_by_default():
+    db = MagicMock()
+
+    with patch.dict(
+        "os.environ",
+        {
+            "RENDER_SERVICE_NAME": "d5-app",
+        },
+        clear=False,
+    ):
+        with pytest.raises(ValueError, match="Contact the administrator"):
+            MessagingService.send_message(db, "CONT_123", content="Hello")

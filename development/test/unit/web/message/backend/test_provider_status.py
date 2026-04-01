@@ -59,6 +59,22 @@ def test_provider_status_reports_relay_configuration():
     assert any("separate runtime" in warning for warning in status["warnings"])
 
 
+def test_provider_status_reports_render_delivery_block_by_default():
+    with patch.dict(
+        "os.environ",
+        {
+            "MESSAGE_PROVIDER": "relay",
+            "RENDER_SERVICE_NAME": "d5-app",
+        },
+        clear=False,
+    ):
+        status = MessageProviderFactory.get_provider_status()
+
+    assert status["environment"]["render"] is True
+    assert status["delivery_policy"]["render_delivery_blocked"] is True
+    assert any("Contact the administrator" in warning for warning in status["warnings"])
+
+
 def test_provider_status_reports_surem_configuration():
     with patch.dict(
         "os.environ",

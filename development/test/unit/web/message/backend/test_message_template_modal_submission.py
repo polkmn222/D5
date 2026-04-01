@@ -91,6 +91,7 @@ def test_home_send_message_ui_gates_demo_relay_availability_before_send():
     assert "fetch('/messaging/demo-availability')" in source
     assert "ensureDemoRelayAvailability()" in source
     assert "Contact the administrator" in source
+    assert "Contact Administrator" in source
 
 
 def test_send_message_ui_initializes_ai_agent_guidance_banner():

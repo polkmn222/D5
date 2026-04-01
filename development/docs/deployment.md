@@ -49,6 +49,7 @@ Use the relay-only runtime when carrier access must come from a protected fixed 
 - Keep the full app runtime and the relay runtime as separate deployment units when outbound carrier access must be tightly controlled.
 - Keep Slack as an opt-in dev/test provider only. It is not part of the real carrier delivery chain.
 - Use `/messaging/provider-status` to inspect the active provider mode and deployment warnings at runtime.
+- The full app and any relay runtime on Render are blocked from real message delivery by default unless `ALLOW_MESSAGE_SEND_ON_RENDER=true` is set explicitly.
 
 ## Required Environment Variables
 
@@ -58,6 +59,7 @@ Use the relay-only runtime when carrier access must come from a protected fixed 
 - `OPENAI_API_KEY`: required for the message-policy embedding and retrieval path.
 - `QDRANT_ENDPOINT`: required for the message-policy vector collection.
 - `QDRANT_API_KEY`: required for authenticated Qdrant access.
+- `ALLOW_MESSAGE_SEND_ON_RENDER`: optional override. Leave unset to block real message delivery on Render by default.
 
 ### Relay-Only Runtime
 
@@ -70,6 +72,7 @@ Use the relay-only runtime when carrier access must come from a protected fixed 
 - `SUREM_REQ_PHONE`: required SureM request phone for relay-safe sends.
 - `SUREM_FORCE_TO_NUMBER`: required fixed-recipient number for the current SureM runtime path.
 - `SUREM_AUTH_URL`, `SUREM_SMS_URL`, `SUREM_MMS_URL`, `SUREM_IMAGE_URL`: optional SureM endpoint overrides.
+- `ALLOW_MESSAGE_SEND_ON_RENDER`: optional override. Leave unset on Render so the relay runtime stays non-sending there.
 
 ### Shared Messaging Variables
 
@@ -103,6 +106,7 @@ Use the relay-only runtime when carrier access must come from a protected fixed 
 3. Set `SUREM_USER_CODE`, `SUREM_SECRET_KEY`, `SUREM_REQ_PHONE`, and `SUREM_FORCE_TO_NUMBER`.
 4. Keep MMS images as JPG files at or under 500KB.
 5. Route the full app through `MESSAGE_PROVIDER=relay` instead of sending to SureM directly from an unapproved host.
+6. Do not set `ALLOW_MESSAGE_SEND_ON_RENDER` on Render unless that host is intentionally approved for carrier egress.
 
 ## Relay-Only Runtime Deployment Checklist
 

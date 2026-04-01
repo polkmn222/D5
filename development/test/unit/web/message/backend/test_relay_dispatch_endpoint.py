@@ -68,3 +68,27 @@ def test_relay_dispatch_forwards_to_target_provider():
     assert payload.record_type == "MMS"
     assert payload.image_url == "https://demo.example.com/image.jpg"
     assert kwargs["provider_name_override"] == "surem"
+
+
+def test_relay_dispatch_is_blocked_on_render_by_default():
+    with patch.dict(
+        "os.environ",
+        {
+            "RENDER_SERVICE_NAME": "d5-app",
+            "RELAY_MESSAGE_TOKEN": "expected-token",
+            "RELAY_TARGET_PROVIDER": "surem",
+        },
+        clear=False,
+    ):
+        response = client.post(
+            "/messaging/relay-dispatch",
+            json={
+                "contact_id": "C1",
+                "record_type": "SMS",
+                "content": "hello",
+            },
+            headers={"Authorization": "Bearer expected-token"},
+        )
+
+    assert response.status_code == 503
+    assert "Contact the administrator" in response.json()["message"]
