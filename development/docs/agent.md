@@ -8,7 +8,7 @@ This document is the primary entry point for the active D4 workspace. It absorbs
 
 - **Product**: D4 is an AI-assisted automotive CRM built around FastAPI, SQLAlchemy, PostgreSQL, Jinja2 templates, and a mounted AI agent sub-application.
 - **Primary runtime**: The canonical main web app lives in `web/backend/`, shared templates and static assets live in `web/frontend/`, messaging-specific runtime code lives in `web/message/`, shared uploads live in `web/app/static/uploads/`, the database layer lives in `db/`, and the AI assistant lives in `ai_agent/`.
-- **Deployment entry points**: Vercel routes traffic through `api/index.py`, while Render starts `web.backend.app.main:app` from `development`.
+- **Deployment entry points**: Vercel routes traffic through `api/index.py`, the full app runtime starts `web.backend.app.main:app` from `development`, and the dedicated relay runtime starts `web.message.backend.relay_app:app`.
 - **AI surface**: The main FastAPI app mounts the AI sub-app at `/ai-agent`, which exposes its own `/api` routes and `/static` assets.
 - **New agent surface**: The main FastAPI app also mounts the standalone `agent` sub-app at `/agent`, with its own `/api` routes, `/static` assets, and dashboard entry.
 
@@ -19,7 +19,7 @@ This document is the primary entry point for the active D4 workspace. It absorbs
 - `docs/testing.md`: active repo-level testing policy.
 - `docs/skill.md`: implementation guidance for backend, frontend, and AI agent work.
 - `docs/architecture.md`: active runtime architecture and request flow.
-- `docs/deployment.md`: current Vercel and Render deployment model.
+- `docs/deployment.md`: current Vercel, full-app runtime, and relay-only runtime deployment model.
 - `docs/workflow.md`: phase numbering, artifact storage, and backup policy.
 - `docs/erd.md`: current data model reference for active ORM entities.
 - `docs/testing/`: canonical testing strategy, runbook, coverage matrix, and migration plan.
@@ -39,6 +39,7 @@ This document is the primary entry point for the active D4 workspace. It absorbs
 - The current top-level folder layout is fixed. Do not move runtime, deployment, test, or documentation roots unless the user explicitly requests a structural migration and the docs are updated in the same phase.
 - `api/index.py`: Vercel shim that adds `development` to `sys.path` and imports `web.backend.app.main:app`.
 - `web/backend/app/main.py`: main FastAPI application, static mount, router registration, and `/ai-agent` mount point.
+- `web/message/backend/relay_app.py`: relay-only FastAPI application for protected fixed-IP message handoff.
 - `web/backend/app/api/`: route composition and object-specific routers.
 - `web/backend/app/services/`: core business logic for CRM objects, messaging, search, dashboards, imports, and attachments.
 - `web/frontend/templates/` and `web/frontend/static/`: server-rendered UI and shared front-end assets.
@@ -73,6 +74,7 @@ This document is the primary entry point for the active D4 workspace. It absorbs
 - The `Send Message` screen is served by `/messaging/ui` and sends through the provider-based backend under `web/message/backend/`.
 - `MessagingService.send_message()` resolves content, subject, template, and attachment metadata first, then dispatches through the active provider selected by `MESSAGE_PROVIDER`.
 - `mock` is the safe local fallback, `slack` is the dev/test notification path, `surem` is the direct carrier delivery path, and `relay` forwards delivery to a protected runtime.
+- `web.message.backend.relay_app` is the preferred deployment entry when the carrier requires a fixed or country-specific IP and the full app runtime must stay separate from the protected relay host.
 - For developer verification, `slack` is the safest real external-delivery check because it exercises the outbound provider path without carrier-side allowlist risk.
 - MMS images are stored in D4-managed storage first for preview, draft, and template reuse; when the active provider is SureM, the image is uploaded to SureM at final send time to obtain the carrier-facing image key.
 - Every successful or failed send attempt writes a `MessageSend` history record so outbound activity remains visible in CRM history even when the provider rejects the message.

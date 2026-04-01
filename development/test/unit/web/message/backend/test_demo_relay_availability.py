@@ -37,7 +37,7 @@ def test_demo_availability_reports_available_when_remote_health_succeeds():
         },
         clear=False,
     ), patch(
-        "web.message.backend.router._check_remote_demo_relay_health",
+        "web.message.backend.relay_runtime._check_remote_demo_relay_health",
         return_value={
             "available": True,
             "message": "",
@@ -70,7 +70,7 @@ def test_demo_availability_uses_local_readiness_when_self_relay_endpoint_matches
         },
         clear=False,
     ), patch(
-        "web.message.backend.router._check_remote_demo_relay_health",
+        "web.message.backend.relay_runtime._check_remote_demo_relay_health",
         side_effect=AssertionError("self-relay should not perform remote health probe"),
     ):
         response = client.get("/messaging/demo-availability")
